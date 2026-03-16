@@ -1,0 +1,97 @@
+# Reference projects
+reference-projects/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# AI/ML
+*.ckpt
+*.pth
+*.pt
+*.h5
+*.hdf5
+*.safetensors
+*.pkl
+*.pickle
+*.model
+*.weights
+models/
+wandb/
+runs/
+logs/
+*.log
+
+# Environment
+.env
+.env.local
+*.env
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data - Large dataset files and images should go in images/ folder
+/datasets/
+images/         # All large dataset files, images, videos etc.
+*.csv
+*.parquet
+*.feather
+*.arrow
+*.tgz
+
+# Temporary files and outputs
+.tmp/
+tmp/
+temp/
+*.tmp
+*.bak
+*.cache
+results/
+results_*/
+test_output/
+test_tum_incremental/
+test_output_type/
+
+# Dataset archives
+*.tar.gz
+*.tgz
+*.zip
+
+# OS
+Thumbs.db
+.Spotlight-V100
+.Trashes
+refproj/vslam/
+paper/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.out
+paper/*.synctex.gz
+paper/*.log
+
+# LaTeX style files (downloaded)
+paper/IEEEtran.bst
+paper/ieeeconf.cls

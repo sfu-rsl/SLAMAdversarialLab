@@ -1,0 +1,36 @@
+experiment:
+  name: network_degradation_kitti_04
+  description: "Evaluate SLAM robustness under network bandwidth constraints"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  skip_depth: true
+  load_stereo: false
+
+perturbations:
+  - name: level_0
+    type: network_degradation
+    enabled: true
+    parameters:
+      preset: level_0
+
+  - name: level_3
+    type: network_degradation
+    enabled: true
+    parameters:
+      preset: level_3
+
+  - name: level_6
+    type: network_degradation
+    enabled: true
+    parameters:
+      preset: level_6
+
+output:
+  base_dir: ./results
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true
+

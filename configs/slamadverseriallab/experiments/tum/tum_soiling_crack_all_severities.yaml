@@ -1,0 +1,85 @@
+experiment:
+  name: tum_soiling_crack_experiments
+  description: "Soiling + Crack composite at all severity levels on TUM fr1_desk2"
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_xyz"
+  skip_depth: true
+  load_stereo: false
+
+perturbations:
+  - name: soiling_crack_light
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: soiling
+          type: lens_soiling
+          parameters:
+            num_particles: 15
+            size_range: [20, 40]
+        - name: crack
+          type: cracked_lens
+          parameters:
+            impact_force: 300
+            break_threshold: 400
+
+  - name: soiling_crack_moderate
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: soiling
+          type: lens_soiling
+          parameters:
+            num_particles: 40
+            size_range: [20, 40]
+        - name: crack
+          type: cracked_lens
+          parameters:
+            impact_force: 400
+            break_threshold: 350
+
+  - name: soiling_crack_heavy
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: soiling
+          type: lens_soiling
+          parameters:
+            num_particles: 80
+            size_range: [20, 40]
+        - name: crack
+          type: cracked_lens
+          parameters:
+            impact_force: 500
+            break_threshold: 300
+
+  - name: soiling_crack_severe
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: soiling
+          type: lens_soiling
+          parameters:
+            num_particles: 150
+            size_range: [20, 40]
+        - name: crack
+          type: cracked_lens
+          parameters:
+            impact_force: 600
+            break_threshold: 250
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false
+  tum_native_format: true

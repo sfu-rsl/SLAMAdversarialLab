@@ -1,0 +1,160 @@
+video:
+  output_path: ./results/showcase.mp4
+  resolution: [1226, 370]       # target [width, height] - frames resized/letterboxed to fit
+  fps: 10
+  codec: libx264
+  preset: medium
+  crf: 18
+  pixel_format: yuv420p
+
+title_card:
+  duration_sec: 2.0
+  background_color: [20, 20, 30]
+  text_color: [255, 255, 255]
+  font_size: 60
+
+severity_overlay:
+  enabled: true
+  position: top_left
+  font_size: 28
+  text_color: [255, 255, 255]
+  background_color: [0, 0, 0]
+  background_alpha: 0.6
+  padding: 10
+
+frame_selection:
+  mode: uniform
+  count: 30
+
+clips:
+  # ===== KITTI Single Perturbations =====
+  - label: "Fog"
+    experiment_dir: ./results/experiments/kitti_fog_experiments
+    severities:
+      - { name: fog_light, display: "Light (200m)" }
+      - { name: fog_moderate, display: "Moderate (50m)" }
+      - { name: fog_heavy, display: "Heavy (20m)" }
+      - { name: fog_severe, display: "Severe (10m)" }
+
+  - label: "Rain"
+    experiment_dir: ./results/experiments/kitti_rain_experiments
+    severities:
+      - { name: rain_light, display: "Light (3 mm/h)" }
+      - { name: rain_moderate, display: "Moderate (10 mm/h)" }
+      - { name: rain_heavy, display: "Heavy (50 mm/h)" }
+      - { name: rain_severe, display: "Severe (200 mm/h)" }
+
+  - label: "Lens Soiling"
+    experiment_dir: ./results/experiments/kitti_soiling_experiments
+    severities:
+      - { name: soiling_light, display: "Light (15 particles)" }
+      - { name: soiling_moderate, display: "Moderate (40 particles)" }
+      - { name: soiling_heavy, display: "Heavy (80 particles)" }
+      - { name: soiling_severe, display: "Severe (150 particles)" }
+
+  - label: "Cracked Lens"
+    experiment_dir: ./results/experiments/kitti_crack_experiments
+    severities:
+      - { name: crack_light, display: "Light (300N)" }
+      - { name: crack_moderate, display: "Moderate (400N)" }
+      - { name: crack_heavy, display: "Heavy (500N)" }
+      - { name: crack_severe, display: "Severe (600N)" }
+
+  - label: "Speed Blur"
+    experiment_dir: ./results/experiments/kitti_speed_blur_experiments
+    severities:
+      - { name: speed_blur_light, display: "Light (30 km/h)" }
+      - { name: speed_blur_moderate, display: "Moderate (50 km/h)" }
+      - { name: speed_blur_heavy, display: "Heavy (80 km/h)" }
+      - { name: speed_blur_severe, display: "Severe (120 km/h)" }
+
+  - label: "Network Degradation"
+    experiment_dir: ./results/experiments/kitti_network_experiments
+    severities:
+      - { name: network_light, display: "Light (5 Mbps)" }
+      - { name: network_moderate, display: "Moderate (3 Mbps)" }
+      - { name: network_heavy, display: "Heavy (1 Mbps)" }
+      - { name: network_severe, display: "Severe (300 Kbps)" }
+
+  # ===== KITTI Composite Perturbations =====
+  - label: "Night + Fog"
+    experiment_dir: ./results/experiments/kitti_night_fog_experiments
+    severities:
+      - { name: night_fog_light, display: "Light (200m)" }
+      - { name: night_fog_moderate, display: "Moderate (50m)" }
+      - { name: night_fog_heavy, display: "Heavy (20m)" }
+      - { name: night_fog_severe, display: "Severe (10m)" }
+
+  - label: "Rain + Motion Blur"
+    experiment_dir: ./results/experiments/kitti_rain_motionblur_experiments
+    severities:
+      - { name: rain_motionblur_light, display: "Light (3mm/h + 30km/h)" }
+      - { name: rain_motionblur_moderate, display: "Moderate (10mm/h + 50km/h)" }
+      - { name: rain_motionblur_heavy, display: "Heavy (50mm/h + 80km/h)" }
+      - { name: rain_motionblur_severe, display: "Severe (200mm/h + 120km/h)" }
+
+  - label: "Rain + Soiling"
+    experiment_dir: ./results/experiments/kitti_rain_soiling_experiments
+    severities:
+      - { name: rain_soiling_light, display: "Light (3mm/h + 15 particles)" }
+      - { name: rain_soiling_moderate, display: "Moderate (10mm/h + 40 particles)" }
+      - { name: rain_soiling_heavy, display: "Heavy (50mm/h + 80 particles)" }
+      - { name: rain_soiling_severe, display: "Severe (200mm/h + 150 particles)" }
+
+  - label: "Soiling + Network"
+    experiment_dir: ./results/experiments/kitti_soiling_network_experiments
+    severities:
+      - { name: soiling_network_light, display: "Light (15 particles + 5Mbps)" }
+      - { name: soiling_network_moderate, display: "Moderate (40 particles + 3Mbps)" }
+      - { name: soiling_network_heavy, display: "Heavy (80 particles + 2Mbps)" }
+      - { name: soiling_network_severe, display: "Severe (150 particles + 1Mbps)" }
+
+  # ===== TUM RGB-D Perturbations =====
+  - label: "Cracked Lens (TUM)"
+    experiment_dir: ./results/experiments/tum_crack_experiments
+    severities:
+      - { name: crack_light, display: "Light (300N)" }
+      - { name: crack_moderate, display: "Moderate (400N)" }
+      - { name: crack_heavy, display: "Heavy (500N)" }
+      - { name: crack_severe, display: "Severe (600N)" }
+
+  - label: "Lens Soiling (TUM)"
+    experiment_dir: ./results/experiments/tum_soiling_experiments
+    severities:
+      - { name: soiling_light, display: "Light (15 particles)" }
+      - { name: soiling_moderate, display: "Moderate (40 particles)" }
+      - { name: soiling_heavy, display: "Heavy (80 particles)" }
+      - { name: soiling_severe, display: "Severe (150 particles)" }
+
+  - label: "Soiling + Cracked Lens (TUM)"
+    experiment_dir: ./results/experiments/tum_soiling_crack_experiments
+    severities:
+      - { name: soiling_crack_light, display: "Light" }
+      - { name: soiling_crack_moderate, display: "Moderate" }
+      - { name: soiling_crack_heavy, display: "Heavy" }
+      - { name: soiling_crack_severe, display: "Severe" }
+
+  - label: "Network Degradation (TUM)"
+    experiment_dir: ./results/experiments/tum_network_experiments
+    severities:
+      - { name: network_light, display: "Light (1 Mbps)" }
+      - { name: network_moderate, display: "Moderate (750 Kbps)" }
+      - { name: network_heavy, display: "Heavy (500 Kbps)" }
+      - { name: network_severe, display: "Severe (250 Kbps)" }
+
+  # ===== EuRoC MAV Perturbations =====
+  - label: "Frame Drop (EuRoC)"
+    experiment_dir: ./results/experiments/euroc_framedrop_experiments
+    severities:
+      - { name: framedrop_light, display: "Light (10%)" }
+      - { name: framedrop_moderate, display: "Moderate (20%)" }
+      - { name: framedrop_heavy, display: "Heavy (30%)" }
+      - { name: framedrop_severe, display: "Severe (50%)" }
+
+  - label: "Network Degradation (EuRoC)"
+    experiment_dir: ./results/experiments/euroc_network_experiments
+    severities:
+      - { name: network_light, display: "Light (5 Mbps)" }
+      - { name: network_moderate, display: "Moderate (3 Mbps)" }
+      - { name: network_heavy, display: "Heavy (1 Mbps)" }
+      - { name: network_severe, display: "Severe (300 Kbps)" }

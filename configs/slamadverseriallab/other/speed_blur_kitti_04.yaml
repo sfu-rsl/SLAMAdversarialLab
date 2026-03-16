@@ -1,0 +1,43 @@
+experiment:
+  name: speed_blur_kitti_04
+  description: "Speed-based motion blur on KITTI sequence 04 with depth-aware parallax"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 50
+  load_stereo: true
+
+perturbations:
+  - name: speed_80kmh_30ms
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 80
+      exposure_time: 0.03
+      encoder: vitb
+      depth_model_type: vkitti
+      max_depth_range: 80.0
+
+  - name: speed_120kmh_30ms
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 120
+      exposure_time: 0.03
+      encoder: vitb
+      depth_model_type: vkitti
+
+  - name: speed_150kmh_30ms
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 150
+      exposure_time: 0.03
+      encoder: vitb
+      depth_model_type: vkitti
+
+output:
+  base_dir: results/other
+  save_images: true

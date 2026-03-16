@@ -1,0 +1,102 @@
+experiment:
+  name: kitti_rain_motionblur_experiments
+  description: "Rain + Speed Blur composite at all severity levels on KITTI seq 07"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "07"
+  max_frames: 200
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: rain_motionblur_light
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: rain
+          type: rain
+          parameters:
+            intensity: 3
+            depth_model: vitb
+            max_depth: 80
+        - name: speed_blur
+          type: speed_blur
+          parameters:
+            speed: 30
+            exposure_time: 0.033
+            encoder: vitb
+            max_depth_range: 80
+            depth_model_type: vkitti
+
+  - name: rain_motionblur_moderate
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: rain
+          type: rain
+          parameters:
+            intensity: 10
+            depth_model: vitb
+            max_depth: 80
+        - name: speed_blur
+          type: speed_blur
+          parameters:
+            speed: 50
+            exposure_time: 0.050
+            encoder: vitb
+            max_depth_range: 80
+            depth_model_type: vkitti
+
+  - name: rain_motionblur_heavy
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: rain
+          type: rain
+          parameters:
+            intensity: 50
+            depth_model: vitb
+            max_depth: 80
+        - name: speed_blur
+          type: speed_blur
+          parameters:
+            speed: 80
+            exposure_time: 0.066
+            encoder: vitb
+            max_depth_range: 80
+            depth_model_type: vkitti
+
+  - name: rain_motionblur_severe
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: rain
+          type: rain
+          parameters:
+            intensity: 200
+            depth_model: vitb
+            max_depth: 80
+        - name: speed_blur
+          type: speed_blur
+          parameters:
+            speed: 120
+            exposure_time: 0.100
+            encoder: vitb
+            max_depth_range: 80
+            depth_model_type: vkitti
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true

@@ -1,0 +1,28 @@
+experiment:
+  name: cracked_lens_physics_tum
+  description: Physics-based cracked lens simulation on TUM RGB-D
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: freiburg1_xyz
+
+perturbations:
+  - name: lens_damage
+    type: cracked_lens_physics
+    enabled: true
+    parameters:
+      impact_x: 0.5
+      impact_y: 0.5
+      impact_force: 500
+      break_threshold: 300
+      nn_radius: 65
+      num_points: 10000
+      sun_angle: 90
+      seed: 42
+
+output:
+  base_dir: ./results
+  save_images: true
+  image_format: png
+  create_timestamp_dir: false

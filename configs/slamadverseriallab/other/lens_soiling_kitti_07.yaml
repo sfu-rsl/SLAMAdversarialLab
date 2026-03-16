@@ -1,0 +1,22 @@
+experiment:
+  name: lens_soiling_kitti_07
+  description: "Lens soiling perturbation on KITTI sequence 07"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "07"
+  skip_depth: true
+  load_stereo: false
+
+perturbations:
+  - name: lens_soiling
+    type: lens_soiling
+    enabled: true
+    parameters: {}
+
+output:
+  base_dir: ./results
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true

@@ -1,0 +1,56 @@
+experiment:
+  name: kitti_speed_blur_experiments
+  description: "Speed-based motion blur at all severity levels on KITTI sequence 07"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "07"
+  max_frames: 200
+  load_stereo: true
+
+perturbations:
+  - name: speed_blur_light
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 30
+      exposure_time: 0.033
+      encoder: vitb
+      max_depth_range: 80
+      depth_model_type: vkitti
+
+  - name: speed_blur_moderate
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 50
+      exposure_time: 0.050
+      encoder: vitb
+      max_depth_range: 80
+      depth_model_type: vkitti
+
+  - name: speed_blur_heavy
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 80
+      exposure_time: 0.066
+      encoder: vitb
+      max_depth_range: 80
+      depth_model_type: vkitti
+
+  - name: speed_blur_severe
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 120
+      exposure_time: 0.100
+      encoder: vitb
+      max_depth_range: 80
+      depth_model_type: vkitti
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false

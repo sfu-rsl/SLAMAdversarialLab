@@ -1,0 +1,40 @@
+experiment:
+  name: kitti_fog_rb_smoke
+  description: "Smoke test for robustness-boundary mode on KITTI fog visibility"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 100
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: fog_boundary
+    type: fog
+    enabled: true
+    parameters:
+      visibility_m: 80.0
+      atmospheric_light: [0.98, 0.98, 1.0]
+      min_depth_m: 0.1
+      max_depth_m: 120.0
+      encoder: vitl
+      max_depth_range: 120.0
+      add_noise: false
+
+robustness_boundary:
+  enabled: true
+  name: fog_visibility_boundary_smoke
+  module: fog
+  parameter: visibility_m
+  lower_bound: 10.0
+  upper_bound: 200.0
+  tolerance: 20.0
+  max_iters: 2
+  ape_rmse_fail: 1.5
+
+output:
+  base_dir: ./results/robustness_boundary_smoke
+  save_images: true
+  create_timestamp_dir: false

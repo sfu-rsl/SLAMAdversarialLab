@@ -1,0 +1,61 @@
+experiment:
+  name: euroc_framedrop_experiments
+  description: "Frame drop at all severity levels on EuRoC V1_01_easy"
+  seed: 42
+
+dataset:
+  type: euroc
+  sequence: V1_01_easy
+  max_frames: 500
+  load_stereo: true
+
+perturbations:
+  - name: framedrop_light
+    type: frame_drop
+    enabled: true
+    parameters:
+      mode: random
+      drop_rate: 0.10
+      seed: 42
+
+  - name: framedrop_moderate
+    type: frame_drop
+    enabled: true
+    parameters:
+      mode: random
+      drop_rate: 0.20
+      seed: 42
+
+  - name: framedrop_heavy
+    type: frame_drop
+    enabled: true
+    parameters:
+      mode: random
+      drop_rate: 0.30
+      seed: 42
+
+  - name: framedrop_severe
+    type: frame_drop
+    enabled: true
+    parameters:
+      mode: random
+      drop_rate: 0.50
+      seed: 42
+
+robustness_boundary:
+  enabled: true
+  name: euroc_framedrop_boundary
+  target_perturbation: framedrop_light
+  module: frame_drop
+  parameter: drop_rate
+  lower_bound: 10
+  upper_bound: 50
+  tolerance: 3
+  max_iters: 10
+  ate_rmse_fail: 1.5
+  fail_on_tracking_failure: false
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false

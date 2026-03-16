@@ -1,0 +1,46 @@
+[submodule "deps/depth-estimation/Depth-Anything-V2"]
+	path = deps/depth-estimation/Depth-Anything-V2
+	url = https://github.com/DepthAnything/Depth-Anything-V2.git
+	ignore = untracked
+[submodule "deps/perturbations/rain-rendering"]
+	path = deps/perturbations/rain-rendering
+	url = https://github.com/mohhef/rain-rendering.git
+[submodule "deps/perturbations/camera-failure"]
+	path = deps/perturbations/camera-failure
+	url = https://github.com/mohhef/camera-failure.git
+[submodule "deps/perturbations/img2img-turbo"]
+	path = deps/perturbations/img2img-turbo
+	url = https://github.com/GaParmar/img2img-turbo.git
+[submodule "deps/perturbations/day-to-night"]
+	path = deps/perturbations/day-to-night
+	url = https://github.com/mohhef/day-to-night.git
+[submodule "deps/slam-algorithms/MASt3R-SLAM"]
+	path = deps/slam-algorithms/MASt3R-SLAM
+	url = https://github.com/mohhef/MASt3R-SLAM.git
+[submodule "deps/slam-algorithms/OpenGS-SLAM"]
+	path = deps/slam-algorithms/OpenGS-SLAM
+	url = https://github.com/mohhef/OpenGS-SLAM.git
+[submodule "deps/slam-algorithms/S3PO-GS"]
+	path = deps/slam-algorithms/S3PO-GS
+	url = https://github.com/mohhef/S3PO-GS.git
+[submodule "deps/slam-algorithms/DROID-SLAM"]
+	path = deps/slam-algorithms/DROID-SLAM
+	url = https://github.com/mohhef/DROID-SLAM.git
+[submodule "deps/slam-algorithms/Photo-SLAM"]
+	path = deps/slam-algorithms/Photo-SLAM
+	url = https://github.com/mohhef/Photo-SLAM.git
+[submodule "deps/slam-frameworks/pyslam"]
+	path = deps/slam-frameworks/pyslam
+	url = https://github.com/mohhef/pyslam.git
+[submodule "deps/slam-algorithms/vista-slam"]
+	path = deps/slam-algorithms/vista-slam
+	url = https://github.com/mohhef/vista-slam
+[submodule "deps/slam-algorithms/GigaSLAM"]
+	path = deps/slam-algorithms/GigaSLAM
+	url = https://github.com/mohhef/GigaSLAM.git
+[submodule "deps/slam-algorithms/VGGT-SLAM"]
+	path = deps/slam-algorithms/VGGT-SLAM
+	url = https://github.com/mohhef/VGGT-SLAM.git
+[submodule "deps/depth-estimation/FoundationStereo"]
+	path = deps/depth-estimation/FoundationStereo
+	url = https://github.com/mohhef/FoundationStereo.git

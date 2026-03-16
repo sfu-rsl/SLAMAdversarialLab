@@ -1,0 +1,43 @@
+experiment:
+  name: fog_and_rain_kitti_04
+  description: "Fog with depth estimation + rain on KITTI sequence 04"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 10
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: foggy_rain_scene
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: fog_with_depth
+          type: fog
+          enabled: true
+          parameters:
+            preset: medium
+            encoder: vitb
+            input_size: 518
+            max_depth_range: 150.0
+            add_noise: false
+        - name: rain_on_fog
+          type: rain
+          enabled: true
+          parameters:
+            intensity: 200
+            depth_model: vitb
+            max_depth: 80
+            rain_rendering_path: ./deps/perturbations/rain-rendering
+
+output:
+  base_dir: ./results
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true
+

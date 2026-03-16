@@ -1,0 +1,40 @@
+experiment:
+  name: lens_flare_test
+  description: "Test lens flare effects from bright sunlight on KITTI sequence 04"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 50
+  skip_depth: true
+  load_stereo: false
+
+perturbations:
+  - name: moderate_flare
+    type: lens_flare
+    enabled: true
+    parameters:
+      preset: strong
+
+  - name: custom_flare
+    type: lens_flare
+    enabled: true
+    parameters:
+      intensity: 0.85
+      sun_position: [0.75, 0.25]
+      num_ghosts: 6
+      add_streaks: true
+      num_streaks: 8
+      streak_length: 0.7
+      add_glow: true
+      glow_radius: 0.25
+      color_tint: [1.0, 0.9, 0.8]
+      chromatic_aberration: true
+
+output:
+  base_dir: ./results
+  save_images: true
+  save_metrics: false
+  create_timestamp_dir: false
+  kitti_native_format: true

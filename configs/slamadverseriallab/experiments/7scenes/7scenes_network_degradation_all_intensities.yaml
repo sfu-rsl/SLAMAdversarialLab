@@ -1,0 +1,57 @@
+experiment:
+  name: 7scenes_network_experiments
+  description: "Network bandwidth degradation at all intensity levels on 7-Scenes chess/seq-01"
+  seed: 42
+
+dataset:
+  type: 7scenes
+  sequence: "chess/seq-01"
+  max_frames: 200
+  skip_depth: true
+  load_stereo: false
+
+perturbations:
+  - name: network_excellent
+    type: network_degradation
+    enabled: true
+    parameters:
+      target_bitrate: "8M"
+      maxrate: "10M"
+      bufsize: "16M"
+      codec: "libx264"
+      encoding_preset: "medium"
+
+  - name: network_good
+    type: network_degradation
+    enabled: true
+    parameters:
+      target_bitrate: "4M"
+      maxrate: "5M"
+      bufsize: "8M"
+      codec: "libx264"
+      encoding_preset: "medium"
+
+  - name: network_poor
+    type: network_degradation
+    enabled: true
+    parameters:
+      target_bitrate: "1M"
+      maxrate: "1.5M"
+      bufsize: "2M"
+      codec: "libx264"
+      encoding_preset: "medium"
+
+  - name: network_extreme
+    type: network_degradation
+    enabled: true
+    parameters:
+      target_bitrate: "256k"
+      maxrate: "384k"
+      bufsize: "512k"
+      codec: "libx264"
+      encoding_preset: "medium"
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false

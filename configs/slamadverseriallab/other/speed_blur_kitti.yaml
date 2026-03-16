@@ -1,0 +1,41 @@
+experiment:
+  name: speed_blur_kitti_04
+  description: "Realistic speed-based motion blur on KITTI sequence 04"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 50
+  load_stereo: true
+  skip_depth: false
+
+perturbations:
+  - name: speed_80kmh_30ms
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 80
+      exposure_time: 0.03
+      num_samples: 15
+
+  - name: speed_120kmh_30ms
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 120
+      exposure_time: 0.03
+      num_samples: 15
+
+  - name: speed_150kmh_30ms
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 150
+      exposure_time: 0.03
+      num_samples: 15
+
+output:
+  base_dir: results/other
+  create_timestamp_dir: false
+  save_images: true

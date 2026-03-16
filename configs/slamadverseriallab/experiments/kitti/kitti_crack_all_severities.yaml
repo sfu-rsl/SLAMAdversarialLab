@@ -1,0 +1,43 @@
+experiment:
+  name: kitti_crack_experiments
+  description: "Cracked lens at all severity levels on KITTI sequence 07"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "07"
+  max_frames: 200
+
+perturbations:
+  - name: crack_light
+    type: cracked_lens
+    enabled: true
+    parameters:
+      impact_force: 300
+      break_threshold: 400
+
+  - name: crack_moderate
+    type: cracked_lens
+    enabled: true
+    parameters:
+      impact_force: 400
+      break_threshold: 350
+
+  - name: crack_heavy
+    type: cracked_lens
+    enabled: true
+    parameters:
+      impact_force: 500
+      break_threshold: 300
+
+  - name: crack_severe
+    type: cracked_lens
+    enabled: true
+    parameters:
+      impact_force: 600
+      break_threshold: 250
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false

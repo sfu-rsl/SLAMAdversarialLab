@@ -1,0 +1,52 @@
+experiment:
+  name: euroc_soiling_experiments
+  description: "Lens soiling at all severity levels on EuRoC V1_01_easy"
+  seed: 42
+
+dataset:
+  type: euroc
+  sequence: V1_01_easy
+  max_frames: 300
+  load_stereo: true
+
+perturbations:
+  - name: soiling_light
+    type: lens_soiling
+    enabled: true
+    parameters:
+      num_particles: 15
+      size_range: [10, 30]
+      opacity_range: [0.2, 0.4]
+      seed: 42
+
+  - name: soiling_moderate
+    type: lens_soiling
+    enabled: true
+    parameters:
+      num_particles: 30
+      size_range: [10, 40]
+      opacity_range: [0.3, 0.5]
+      seed: 42
+
+  - name: soiling_heavy
+    type: lens_soiling
+    enabled: true
+    parameters:
+      num_particles: 50
+      size_range: [15, 50]
+      opacity_range: [0.4, 0.6]
+      seed: 42
+
+  - name: soiling_severe
+    type: lens_soiling
+    enabled: true
+    parameters:
+      num_particles: 80
+      size_range: [20, 60]
+      opacity_range: [0.5, 0.7]
+      seed: 42
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false

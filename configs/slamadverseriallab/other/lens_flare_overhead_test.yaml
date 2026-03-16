@@ -1,0 +1,25 @@
+experiment:
+  name: lens_flare_overhead_test
+  description: "Test overhead sun lens flare at top-center position"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 50
+  skip_depth: true
+  load_stereo: false
+
+perturbations:
+  - name: overhead_sun
+    type: lens_flare
+    enabled: true
+    parameters:
+      preset: overhead_sun
+
+output:
+  base_dir: ./results
+  save_images: true
+  save_metrics: false
+  create_timestamp_dir: false
+  kitti_native_format: true

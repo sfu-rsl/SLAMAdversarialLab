@@ -1,0 +1,23 @@
+experiment:
+  name: motion_blur_kitti_04
+  description: "Depth-aware forward motion blur on KITTI sequence 04"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  skip_depth: false
+  load_stereo: true
+
+perturbations:
+  - name: forward_motion
+    type: motion_blur
+    enabled: true
+    parameters:
+      preset: forward_motion
+
+output:
+  base_dir: ./results
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true

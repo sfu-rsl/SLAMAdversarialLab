@@ -1,0 +1,49 @@
+experiment:
+  name: 7scenes_framedrop_experiments
+  description: "Frame dropping at all intensity levels on 7-Scenes chess/seq-01"
+  seed: 42
+
+dataset:
+  type: 7scenes
+  sequence: "chess/seq-01"
+  max_frames: 200
+  skip_depth: true
+  load_stereo: false
+
+perturbations:
+  - name: framedrop_light
+    type: frame_drop
+    enabled: true
+    parameters:
+      mode: "random"
+      drop_rate: 0.05
+      seed: 42
+
+  - name: framedrop_moderate
+    type: frame_drop
+    enabled: true
+    parameters:
+      mode: "random"
+      drop_rate: 0.15
+      seed: 42
+
+  - name: framedrop_heavy
+    type: frame_drop
+    enabled: true
+    parameters:
+      mode: "random"
+      drop_rate: 0.30
+      seed: 42
+
+  - name: framedrop_severe
+    type: frame_drop
+    enabled: true
+    parameters:
+      mode: "random"
+      drop_rate: 0.50
+      seed: 42
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false

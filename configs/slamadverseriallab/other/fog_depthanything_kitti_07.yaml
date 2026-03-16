@@ -1,0 +1,26 @@
+experiment:
+  name: fog_depthanything_kitti_07
+  description: "Fog with automatic depth estimation for KITTI sequence 07"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "07"
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: fog_depth_estimated
+    type: fog
+    enabled: true
+    parameters:
+      intensity: 200
+      depth_model: vitb
+      max_depth: 80
+      rain_rendering_path: ./deps/perturbations/rain-rendering
+
+output:
+  base_dir: ./results
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true

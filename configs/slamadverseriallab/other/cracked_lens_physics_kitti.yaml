@@ -1,0 +1,28 @@
+experiment:
+  name: cracked_lens_physics_kitti
+  description: Physics-based cracked lens simulation on KITTI stereo sequences
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+
+perturbations:
+  - name: windshield_crack
+    type: cracked_lens_physics
+    enabled: true
+    parameters:
+      impact_x: 0.35
+      impact_y: 0.4
+      impact_force: 600
+      break_threshold: 280
+      nn_radius: 70
+      num_points: 12000
+      sun_angle: 45
+      seed: 123
+
+output:
+  base_dir: ./results
+  save_images: true
+  image_format: png
+  create_timestamp_dir: false

@@ -1,0 +1,44 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Results and outputs
+results/
+test_output/
+test_tum_incremental/
+benchmark_results/
+
+# Documentation that doesn't need to be in the image
+*.md
+
+# Test files
+tests/
+pytest_cache/
+
+# Temporary files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

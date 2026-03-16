@@ -1,0 +1,98 @@
+experiment:
+  name: kitti_night_fog_experiments
+  description: "Night + Fog composite at all severity levels on KITTI seq 07"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "07"
+  max_frames: 200
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: night_fog_light
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: night
+          type: daynight
+          parameters:
+            direction: day_to_night
+        - name: fog
+          type: fog
+          parameters:
+            visibility_m: 200
+            encoder: vitl
+            max_depth_range: 80.0
+
+  - name: night_fog_moderate
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: night
+          type: daynight
+          parameters:
+            direction: day_to_night
+        - name: fog
+          type: fog
+          parameters:
+            visibility_m: 50
+            encoder: vitl
+            max_depth_range: 80.0
+
+  - name: night_fog_heavy
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: night
+          type: daynight
+          parameters:
+            direction: day_to_night
+        - name: fog
+          type: fog
+          parameters:
+            visibility_m: 20
+            encoder: vitl
+            max_depth_range: 80.0
+
+  - name: night_fog_severe
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: night
+          type: daynight
+          parameters:
+            direction: day_to_night
+        - name: fog
+          type: fog
+          parameters:
+            visibility_m: 10
+            encoder: vitl
+            max_depth_range: 80.0
+
+robustness_boundary:
+  enabled: true
+  name: night_fog_visibility_boundary
+  target_perturbation: night_fog_light
+  module: fog
+  parameter: visibility_m
+  lower_bound: 10
+  upper_bound: 200
+  tolerance: 5
+  max_iters: 10
+  ate_rmse_fail: 1.5
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true

@@ -1,0 +1,50 @@
+experiment:
+  name: kitti_rain_experiments
+  description: "Rain at all severity levels on KITTI seq 07"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "07"
+  max_frames: 200
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: rain_light
+    type: rain
+    enabled: true
+    parameters:
+      intensity: 3
+      depth_model: vitb
+      max_depth: 80
+
+  - name: rain_moderate
+    type: rain
+    enabled: true
+    parameters:
+      intensity: 10
+      depth_model: vitb
+      max_depth: 80
+
+  - name: rain_heavy
+    type: rain
+    enabled: true
+    parameters:
+      intensity: 50
+      depth_model: vitb
+      max_depth: 80
+
+  - name: rain_severe
+    type: rain
+    enabled: true
+    parameters:
+      intensity: 200
+      depth_model: vitb
+      max_depth: 80
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true

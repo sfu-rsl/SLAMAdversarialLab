@@ -1,0 +1,36 @@
+experiment:
+  name: kitti_rain_rb_smoke
+  description: "Smoke test for robustness-boundary mode on KITTI rain intensity"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 20
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: rain_boundary
+    type: rain
+    enabled: true
+    parameters:
+      intensity: 10
+      depth_model: vitb
+      max_depth: 80
+
+robustness_boundary:
+  enabled: true
+  name: rain_intensity_boundary_smoke
+  module: rain
+  parameter: intensity
+  lower_bound: 1
+  upper_bound: 20
+  tolerance: 1
+  max_iters: 2
+  ape_rmse_fail: 1.5
+
+output:
+  base_dir: ./results/robustness_boundary_smoke
+  save_images: true
+  create_timestamp_dir: false

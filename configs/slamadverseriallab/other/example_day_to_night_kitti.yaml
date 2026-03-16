@@ -1,0 +1,26 @@
+experiment:
+  name: day_to_night_kitti_04
+  description: "Transform KITTI sequence 04 from day to night using img2img-turbo"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: night_scene
+    type: daynight
+    enabled: true
+    parameters:
+      direction: day_to_night
+
+      enable_fp16: true
+
+output:
+  base_dir: ./results
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true
+

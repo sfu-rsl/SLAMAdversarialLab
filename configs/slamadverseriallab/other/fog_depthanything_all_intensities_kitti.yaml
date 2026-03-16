@@ -1,0 +1,77 @@
+experiment:
+  name: fog_all_intensities_kitti_04
+  description: "Compare light, moderate, and dense fog on KITTI sequence 04"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: light_fog
+    type: fog
+    enabled: true
+    parameters:
+      visibility_m: 500.0
+      atmospheric_light: [0.98, 0.98, 1.0]
+
+      min_depth_m: 0.1
+      max_depth_m: 150.0
+
+      encoder: vitl
+      input_size: 518
+      max_depth_range: 150.0
+
+      add_noise: true
+      noise_scale: 0.5
+      noise_steps: 10
+      focal_length_px: 707.0912
+      principal_point: [601.8873, 183.1104]
+
+  - name: heavy_fog
+    type: fog
+    enabled: true
+    parameters:
+      visibility_m: 300.0
+      atmospheric_light: [0.98, 0.98, 1.0]
+
+      min_depth_m: 0.1
+      max_depth_m: 150.0
+
+      encoder: vitl
+      input_size: 518
+      max_depth_range: 150.0
+
+      add_noise: true
+      noise_scale: 0.5
+      noise_steps: 10
+      focal_length_px: 707.0912
+      principal_point: [601.8873, 183.1104]
+
+  - name: dense_fog
+    type: fog
+    enabled: true
+    parameters:
+      visibility_m: 20.0
+      atmospheric_light: [0.98, 0.98, 1.0]
+
+      min_depth_m: 0.1
+      max_depth_m: 150.0
+
+      encoder: vitl
+      input_size: 518
+      max_depth_range: 150.0
+
+      add_noise: true
+      noise_scale: 0.5
+      noise_steps: 10
+      focal_length_px: 707.0912
+      principal_point: [601.8873, 183.1104]
+
+output:
+  base_dir: ./results
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true

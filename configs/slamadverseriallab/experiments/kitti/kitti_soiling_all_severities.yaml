@@ -1,0 +1,46 @@
+experiment:
+  name: kitti_soiling_experiments
+  description: "Lens soiling at all severity levels on KITTI seq 07"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "07"
+  max_frames: 200
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: soiling_light
+    type: lens_soiling
+    enabled: true
+    parameters:
+      num_particles: 15
+      size_range: [20, 40]
+
+  - name: soiling_moderate
+    type: lens_soiling
+    enabled: true
+    parameters:
+      num_particles: 40
+      size_range: [20, 40]
+
+  - name: soiling_heavy
+    type: lens_soiling
+    enabled: true
+    parameters:
+      num_particles: 80
+      size_range: [20, 40]
+
+  - name: soiling_severe
+    type: lens_soiling
+    enabled: true
+    parameters:
+      num_particles: 150
+      size_range: [20, 40]
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true

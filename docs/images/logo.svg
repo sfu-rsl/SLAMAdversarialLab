@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#58a6ff"/>
+      <stop offset="100%" style="stop-color:#a371f7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer lens ring -->
+  <circle cx="60" cy="60" r="50" fill="none" stroke="url(#grad)" stroke-width="6"/>
+
+  <!-- Inner lens -->
+  <circle cx="60" cy="60" r="30" fill="none" stroke="#c9d1d9" stroke-width="3"/>
+  <circle cx="60" cy="60" r="12" fill="#c9d1d9"/>
+
+  <!-- Crack/perturbation lines -->
+  <g stroke="#f85149" stroke-width="3" stroke-linecap="round">
+    <line x1="60" y1="60" x2="95" y2="30"/>
+    <line x1="60" y1="60" x2="100" y2="55"/>
+    <line x1="60" y1="60" x2="85" y2="90"/>
+  </g>
+</svg>

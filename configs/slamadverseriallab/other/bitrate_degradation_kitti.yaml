@@ -1,0 +1,23 @@
+experiment:
+  name: bitrate_degradation_kitti_04
+  description: "H.264 compression artifacts on KITTI sequence 04"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: extreme_compression
+    type: bitrate_degradation
+    enabled: true
+    parameters:
+      preset: extreme_degradation
+
+output:
+  base_dir: ./results
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true

@@ -1,0 +1,48 @@
+experiment:
+  name: euroc_network_experiments
+  description: "Network degradation at all severity levels on EuRoC V1_01_easy"
+  seed: 42
+
+dataset:
+  type: euroc
+  sequence: V1_01_easy
+  max_frames: 500
+  load_stereo: true
+
+perturbations:
+  - name: network_light
+    type: network_degradation
+    enabled: true
+    parameters:
+      target_bitrate: "5M"
+      maxrate: "5M"
+      bufsize: "10M"
+
+  - name: network_moderate
+    type: network_degradation
+    enabled: true
+    parameters:
+      target_bitrate: "3M"
+      maxrate: "3M"
+      bufsize: "6M"
+
+  - name: network_heavy
+    type: network_degradation
+    enabled: true
+    parameters:
+      target_bitrate: "1M"
+      maxrate: "1M"
+      bufsize: "2M"
+
+  - name: network_severe
+    type: network_degradation
+    enabled: true
+    parameters:
+      target_bitrate: "300K"
+      maxrate: "300K"
+      bufsize: "600K"
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false

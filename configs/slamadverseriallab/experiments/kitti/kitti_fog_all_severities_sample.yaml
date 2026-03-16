@@ -1,0 +1,59 @@
+experiment:
+  name: kitti_fog_experiments_sample
+  description: "Fog at all severity levels on KITTI sequence 04"
+
+dataset:
+  type: kitti
+  sequence: "04"
+  load_stereo: true
+
+perturbations:
+  - name: fog_light
+    type: fog
+    enabled: true
+    parameters:
+      visibility_m: 200.0
+      atmospheric_light: [0.98, 0.98, 1.0]
+      encoder: vitl
+      add_noise: true
+      noise_scale: 0.5
+      noise_steps: 10
+
+  - name: fog_moderate
+    type: fog
+    enabled: true
+    parameters:
+      visibility_m: 50.0
+      atmospheric_light: [0.98, 0.98, 1.0]
+      encoder: vitl
+      add_noise: true
+      noise_scale: 0.5
+      noise_steps: 10
+
+  - name: fog_heavy
+    type: fog
+    enabled: true
+    parameters:
+      visibility_m: 20.0
+      atmospheric_light: [0.98, 0.98, 1.0]
+      encoder: vitl
+      add_noise: true
+      noise_scale: 0.5
+      noise_steps: 10
+
+  - name: fog_severe
+    type: fog
+    enabled: true
+    parameters:
+      visibility_m: 10.0
+      atmospheric_light: [0.98, 0.98, 1.0]
+      encoder: vitl
+      add_noise: true
+      noise_scale: 0.5
+      noise_steps: 10
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false
+

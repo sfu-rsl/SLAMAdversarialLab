@@ -1,0 +1,38 @@
+experiment:
+  name: soiling_and_rain_kitti_04
+  description: "Lens soiling + physics-based rain on KITTI sequence 04"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: soiling_and_rain
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: soiling_layer
+          type: lens_soiling
+          enabled: true
+          parameters:
+            preset: heavy_soiling
+            seed: 42
+        - name: rain_layer
+          type: rain
+          enabled: true
+          parameters:
+            intensity: 100
+            depth_model: vitb
+            max_depth: 80
+
+output:
+  base_dir: ./results
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true
+

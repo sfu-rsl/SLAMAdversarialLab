@@ -1,0 +1,19 @@
+experiment:
+  name: baseline_tum_desk
+  description: "Baseline evaluation on TUM freiburg1_desk"
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

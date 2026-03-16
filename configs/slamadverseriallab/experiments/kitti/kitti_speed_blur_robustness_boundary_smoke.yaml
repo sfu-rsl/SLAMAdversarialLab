@@ -1,0 +1,36 @@
+experiment:
+  name: kitti_speed_blur_rb_smoke
+  description: "Smoke test for robustness-boundary mode on KITTI speed blur speed"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 20
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: speed_blur_boundary
+    type: speed_blur
+    enabled: true
+    parameters:
+      speed: 50.0
+      exposure_time: 0.05
+      max_blur_px: 120.0
+
+robustness_boundary:
+  enabled: true
+  name: speed_blur_speed_boundary_smoke
+  module: speed_blur
+  parameter: speed
+  lower_bound: 10.0
+  upper_bound: 120.0
+  tolerance: 5.0
+  max_iters: 2
+  ape_rmse_fail: 1.5
+
+output:
+  base_dir: ./results/robustness_boundary_smoke
+  save_images: true
+  create_timestamp_dir: false

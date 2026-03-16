@@ -1,0 +1,25 @@
+experiment:
+  name: regression_kitti_50f_fog_da3
+  description: "50-frame fog regression on KITTI seq04 with DA3-generated depth"
+  seed: 42
+
+dataset:
+  type: kitti
+  path: ./datasets/kitti/sequences/04
+  sequence: "04"
+  max_frames: 50
+  load_stereo: false
+  skip_depth: true
+
+perturbations:
+  - name: fog_da3
+    type: fog
+    enabled: true
+    parameters:
+      visibility_m: 50
+      max_depth_range: 80.0
+
+output:
+  base_dir: ./results/regression
+  save_images: true
+  create_timestamp_dir: false

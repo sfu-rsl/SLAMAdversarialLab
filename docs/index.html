@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SLAMAdverserialLab</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&family=Noto+Serif:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <!-- Hero Section -->
+  <section id="hero">
+    <div class="container">
+      <img src="images/logo.svg" alt="SLAMAdverserialLab Logo" class="hero-logo">
+      <h1 class="title">SLAMAdverserialLab</h1>
+      <h2 class="subtitle">An Extensible Framework for Visual SLAM Robustness Evaluation under Adverse Conditions</h2>
+
+      <div class="authors">
+        <span class="author">Mohamed Hefny<sup>1</sup></span>
+        <span class="author">Steven Ko<sup>1</sup></span>
+        <span class="author">Karthik Dantu<sup>2</sup></span>
+      </div>
+
+      <div class="affiliations">
+        <span class="affiliation"><sup>1</sup>Simon Fraser University</span>
+        <span class="affiliation"><sup>2</sup>University at Buffalo</span>
+      </div>
+
+      <div class="buttons">
+        <a href="#" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Paper</a>
+        <a href="https://github.com/mohhef/SLAMAdverserialLab" class="btn btn-secondary"><i class="fab fa-github"></i> Code</a>
+        <a href="#citation" class="btn btn-secondary"><i class="fas fa-quote-right"></i> BibTeX</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Abstract Section -->
+  <section id="abstract">
+    <div class="container">
+      <h2 class="section-title">Abstract</h2>
+      <p class="abstract-text">
+        Visual SLAM systems now reach high accuracy on clean datasets, but we still lack an end-to-end, configurable way to stress-test complete pipelines under challenging visual and video-transport conditions. We present <strong>SLAMAdverserialLab</strong>, a modular framework that takes monocular or stereo RGB sequences from arbitrary datasets, applies user-specified, physically parameterized perturbations, runs one or more SLAM systems on the perturbed sequences, and provides pipelines for trajectory- and VO-level evaluation.
+      </p>
+      <p class="abstract-text">
+        We instantiate three condition families: <em>scene and illumination</em> (rain in mm/h, fog via visibility, day-to-night shifts), <em>optics</em> (lens soiling, cracked lens occlusions, vignetting, blur), and <em>video transport</em> (bitrate-induced compression and packet-loss-like frame drops). By perturbing existing datasets instead of collecting new ones, the framework lets users compose customizable perturbation suites tailored to the specific conditions they want to test.
+      </p>
+    </div>
+  </section>
+
+  <!-- Demo GIFs Section -->
+  <section id="demos">
+    <div class="container">
+      <h2 class="section-title">Visual Perturbation Demos</h2>
+      <p class="section-description">Each row shows a perturbation type across intensity levels: Light &rarr; Moderate &rarr; Heavy &rarr; Severe</p>
+
+      <h3 class="subsection-title">KITTI Dataset (Outdoor Driving)</h3>
+
+      <div class="intensity-labels">
+        <span>Light</span><span>Moderate</span><span>Heavy</span><span>Severe</span>
+      </div>
+
+      <p class="perturbation-label">Rain</p>
+      <div class="gif-row">
+        <div class="gif-item"><img src="gifs/kitti_rain_light.gif" alt="Rain Light" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_rain_moderate.gif" alt="Rain Moderate" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_rain_heavy.gif" alt="Rain Heavy" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_rain_severe.gif" alt="Rain Severe" loading="lazy"></div>
+      </div>
+
+      <p class="perturbation-label">Night + Fog</p>
+      <div class="gif-row">
+        <div class="gif-item"><img src="gifs/kitti_nightfog_light.gif" alt="Night Fog Light" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_nightfog_moderate.gif" alt="Night Fog Moderate" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_nightfog_heavy.gif" alt="Night Fog Heavy" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_nightfog_severe.gif" alt="Night Fog Severe" loading="lazy"></div>
+      </div>
+
+      <p class="perturbation-label">Network Degradation</p>
+      <div class="gif-row">
+        <div class="gif-item"><img src="gifs/kitti_network_light.gif" alt="Network Light" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_network_moderate.gif" alt="Network Moderate" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_network_heavy.gif" alt="Network Heavy" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_network_severe.gif" alt="Network Severe" loading="lazy"></div>
+      </div>
+
+      <p class="perturbation-label">Rain + Lens Soiling</p>
+      <div class="gif-row">
+        <div class="gif-item"><img src="gifs/kitti_rainsoiling_light.gif" alt="Rain Soiling Light" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_rainsoiling_moderate.gif" alt="Rain Soiling Moderate" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_rainsoiling_heavy.gif" alt="Rain Soiling Heavy" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_rainsoiling_severe.gif" alt="Rain Soiling Severe" loading="lazy"></div>
+      </div>
+
+      <p class="perturbation-label">Soiling + Network</p>
+      <div class="gif-row">
+        <div class="gif-item"><img src="gifs/kitti_soilingnetwork_light.gif" alt="Soiling Network Light" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_soilingnetwork_moderate.gif" alt="Soiling Network Moderate" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_soilingnetwork_heavy.gif" alt="Soiling Network Heavy" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/kitti_soilingnetwork_severe.gif" alt="Soiling Network Severe" loading="lazy"></div>
+      </div>
+
+      <h3 class="subsection-title">TUM RGB-D Dataset (Indoor)</h3>
+
+      <div class="intensity-labels">
+        <span>Light</span><span>Moderate</span><span>Heavy</span><span>Severe</span>
+      </div>
+
+      <p class="perturbation-label">Cracked Lens</p>
+      <div class="gif-row">
+        <div class="gif-item"><img src="gifs/tum_crack_light.gif" alt="Crack Light" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_crack_moderate.gif" alt="Crack Moderate" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_crack_heavy.gif" alt="Crack Heavy" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_crack_severe.gif" alt="Crack Severe" loading="lazy"></div>
+      </div>
+
+      <p class="perturbation-label">Lens Soiling</p>
+      <div class="gif-row">
+        <div class="gif-item"><img src="gifs/tum_soiling_light.gif" alt="Soiling Light" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_soiling_moderate.gif" alt="Soiling Moderate" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_soiling_heavy.gif" alt="Soiling Heavy" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_soiling_severe.gif" alt="Soiling Severe" loading="lazy"></div>
+      </div>
+
+      <p class="perturbation-label">Network Degradation</p>
+      <div class="gif-row">
+        <div class="gif-item"><img src="gifs/tum_network_light.gif" alt="Network Light" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_network_moderate.gif" alt="Network Moderate" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_network_heavy.gif" alt="Network Heavy" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_network_severe.gif" alt="Network Severe" loading="lazy"></div>
+      </div>
+
+      <p class="perturbation-label">Soiling + Crack</p>
+      <div class="gif-row">
+        <div class="gif-item"><img src="gifs/tum_soilingcrack_light.gif" alt="Soiling Crack Light" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_soilingcrack_moderate.gif" alt="Soiling Crack Moderate" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_soilingcrack_heavy.gif" alt="Soiling Crack Heavy" loading="lazy"></div>
+        <div class="gif-item"><img src="gifs/tum_soilingcrack_severe.gif" alt="Soiling Crack Severe" loading="lazy"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Comparisons Section -->
+  <section id="comparisons">
+    <div class="container">
+      <h2 class="section-title">Before / After Comparisons</h2>
+      <p class="section-description">Drag the slider to compare original and perturbed images (same frame)</p>
+
+      <div class="comparison-grid">
+        <div class="comparison-item">
+          <div class="image-compare">
+            <div class="compare-container">
+              <img src="images/baseline_kitti.png" alt="Original" class="compare-before">
+              <img src="images/compare_rain.png" alt="Heavy Rain" class="compare-after">
+              <div class="compare-slider">
+                <div class="slider-line"></div>
+                <div class="slider-handle"><i class="fas fa-arrows-left-right"></i></div>
+              </div>
+            </div>
+            <p class="compare-caption">Heavy Rain (Physics-based)</p>
+          </div>
+        </div>
+
+        <div class="comparison-item">
+          <div class="image-compare">
+            <div class="compare-container">
+              <img src="images/baseline_kitti.png" alt="Original" class="compare-before">
+              <img src="images/compare_night_fog.png" alt="Night + Fog" class="compare-after">
+              <div class="compare-slider">
+                <div class="slider-line"></div>
+                <div class="slider-handle"><i class="fas fa-arrows-left-right"></i></div>
+              </div>
+            </div>
+            <p class="compare-caption">Night + Fog (Day-Night + Koschmieder)</p>
+          </div>
+        </div>
+
+        <div class="comparison-item">
+          <div class="image-compare">
+            <div class="compare-container">
+              <img src="images/baseline_kitti.png" alt="Original" class="compare-before">
+              <img src="images/compare_soiling.png" alt="Soiling + Network" class="compare-after">
+              <div class="compare-slider">
+                <div class="slider-line"></div>
+                <div class="slider-handle"><i class="fas fa-arrows-left-right"></i></div>
+              </div>
+            </div>
+            <p class="compare-caption">Lens Soiling + Network Degradation</p>
+          </div>
+        </div>
+
+        <div class="comparison-item">
+          <div class="image-compare">
+            <div class="compare-container">
+              <img src="images/baseline_kitti.png" alt="Original" class="compare-before">
+              <img src="images/compare_network.png" alt="Network Degradation" class="compare-after">
+              <div class="compare-slider">
+                <div class="slider-line"></div>
+                <div class="slider-handle"><i class="fas fa-arrows-left-right"></i></div>
+              </div>
+            </div>
+            <p class="compare-caption">Network Degradation (H.264 Compression)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pipeline Section -->
+  <section id="pipeline">
+    <div class="container">
+      <h2 class="section-title">Framework Pipeline</h2>
+      <div class="pipeline-diagram">
+        <div class="pipeline-step">
+          <div class="step-icon"><i class="fas fa-database"></i></div>
+          <div class="step-label">Dataset</div>
+          <div class="step-detail">TUM RGB-D, KITTI</div>
+        </div>
+        <div class="pipeline-arrow"><i class="fas fa-arrow-right"></i></div>
+        <div class="pipeline-step">
+          <div class="step-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+          <div class="step-label">Perturbations</div>
+          <div class="step-detail">13 Modules</div>
+        </div>
+        <div class="pipeline-arrow"><i class="fas fa-arrow-right"></i></div>
+        <div class="pipeline-step">
+          <div class="step-icon"><i class="fas fa-images"></i></div>
+          <div class="step-label">Perturbed Data</div>
+          <div class="step-detail">YAML Config</div>
+        </div>
+        <div class="pipeline-arrow"><i class="fas fa-arrow-right"></i></div>
+        <div class="pipeline-step">
+          <div class="step-icon"><i class="fas fa-robot"></i></div>
+          <div class="step-label">SLAM</div>
+          <div class="step-detail">ORB-SLAM3, DROID, ...</div>
+        </div>
+        <div class="pipeline-arrow"><i class="fas fa-arrow-right"></i></div>
+        <div class="pipeline-step">
+          <div class="step-icon"><i class="fas fa-chart-line"></i></div>
+          <div class="step-label">Evaluation</div>
+          <div class="step-detail">ATE, RPE, VO Stats</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features">
+    <div class="container">
+      <h2 class="section-title">Contributions</h2>
+      <div class="contributions">
+        <ul class="contribution-list">
+          <li>An <strong>end-to-end framework</strong> for systematic robustness evaluation of Visual SLAM systems under adverse conditions, requiring no new data collection by perturbing existing benchmark datasets.</li>
+          <li>A <strong>modular perturbation system</strong> with 13 modules across three families: scene/illumination (fog, rain, day-night), optics (lens soiling, cracks, vignetting, blur), and video transport (compression, frame drops).</li>
+          <li><strong>Physics-based parameterization</strong> using real-world units for reproducibility: fog visibility in meters via the Koschmieder model, rain intensity in mm/h, and video bitrate in kbps.</li>
+          <li><strong>Multi-algorithm evaluation</strong> through a unified interface supporting ORB-SLAM3, DROID-SLAM, MASt3R-SLAM, DPVO, MonoGS, and related baselines.</li>
+          <li><strong>Composable perturbation chains</strong> enabling sequential composition to study compound degradation scenarios that reflect real-world failure modes.</li>
+          <li><strong>Standardized evaluation</strong> with trajectory metrics, tracking statistics, and automated comparison plots via the evo library.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Supported Modules Table -->
+  <section id="modules">
+    <div class="container">
+      <h2 class="section-title">Perturbation Modules</h2>
+      <div class="table-wrapper">
+        <table class="modules-table">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Module</th>
+              <th>Parameters</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td rowspan="3" class="category-cell">Scene &amp; Illumination</td>
+              <td>Fog</td>
+              <td>visibility (m)</td>
+              <td>Koschmieder atmospheric scattering with Depth Anything V2</td>
+            </tr>
+            <tr>
+              <td>Rain</td>
+              <td>intensity (mm/h)</td>
+              <td>Physics-based particle rendering</td>
+            </tr>
+            <tr>
+              <td>Day-to-Night</td>
+              <td>-</td>
+              <td>CycleGAN-Turbo image translation</td>
+            </tr>
+            <tr>
+              <td rowspan="5" class="category-cell">Optics</td>
+              <td>Lens Soiling</td>
+              <td>density, particle_size</td>
+              <td>Bokeh-based particle occlusion</td>
+            </tr>
+            <tr>
+              <td>Cracked Lens</td>
+              <td>force, threshold</td>
+              <td>Stress propagation physics simulation</td>
+            </tr>
+            <tr>
+              <td>Motion Blur</td>
+              <td>intensity, kernel_size</td>
+              <td>Linear/radial/zoom blur types</td>
+            </tr>
+            <tr>
+              <td>Vignetting</td>
+              <td>strength, radius</td>
+              <td>Radial edge darkening</td>
+            </tr>
+            <tr>
+              <td>Lens Flare</td>
+              <td>threshold, intensity</td>
+              <td>Bright source artifacts</td>
+            </tr>
+            <tr>
+              <td rowspan="2" class="category-cell">Video Transport</td>
+              <td>Network Degradation</td>
+              <td>bitrate (kbps), codec</td>
+              <td>H.264/H.265 compression artifacts</td>
+            </tr>
+            <tr>
+              <td>Frame Drop</td>
+              <td>drop_rate, pattern</td>
+              <td>Random/periodic temporal discontinuities</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Citation Section -->
+  <section id="citation">
+    <div class="container">
+      <h2 class="section-title">Citation</h2>
+      <div class="citation-box">
+        <pre><code>@article{hefny2024slamadverseriallab,
+  title={SLAMAdverserialLab: An Extensible Framework for Visual SLAM
+         Robustness Evaluation under Adverse Conditions},
+  author={Hefny, Mohamed and Ko, Steven and Dantu, Karthik},
+  journal={arXiv preprint},
+  year={2024}
+}</code></pre>
+        <button class="copy-btn" onclick="copyBibtex()"><i class="fas fa-copy"></i> Copy</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <p>
+          <a href="https://github.com/mohhef/SLAMAdverserialLab"><i class="fab fa-github"></i> GitHub</a>
+          &nbsp;&bull;&nbsp;
+          <a href="#">MIT License</a>
+        </p>
+        <p class="footer-note">
+          Website template inspired by <a href="https://nerfies.github.io/">Nerfies</a>
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

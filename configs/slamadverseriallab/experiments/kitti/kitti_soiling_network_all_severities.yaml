@@ -1,0 +1,90 @@
+experiment:
+  name: kitti_soiling_network_experiments
+  description: "Soiling + Network composite at all severity levels on KITTI seq 07"
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "07"
+  max_frames: 200
+  skip_depth: true
+  load_stereo: true
+
+perturbations:
+  - name: soiling_network_light
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: soiling
+          type: lens_soiling
+          parameters:
+            num_particles: 15
+            size_range: [20, 40]
+        - name: network
+          type: network_degradation
+          parameters:
+            target_bitrate: "5M"
+            maxrate: "5M"
+            bufsize: "10M"
+
+  - name: soiling_network_moderate
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: soiling
+          type: lens_soiling
+          parameters:
+            num_particles: 40
+            size_range: [20, 40]
+        - name: network
+          type: network_degradation
+          parameters:
+            target_bitrate: "3M"
+            maxrate: "3M"
+            bufsize: "6M"
+
+  - name: soiling_network_heavy
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: soiling
+          type: lens_soiling
+          parameters:
+            num_particles: 80
+            size_range: [20, 40]
+        - name: network
+          type: network_degradation
+          parameters:
+            target_bitrate: "2M"
+            maxrate: "2M"
+            bufsize: "4M"
+
+  - name: soiling_network_severe
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: soiling
+          type: lens_soiling
+          parameters:
+            num_particles: 150
+            size_range: [20, 40]
+        - name: network
+          type: network_degradation
+          parameters:
+            target_bitrate: "1M"
+            maxrate: "1M"
+            bufsize: "2M"
+
+output:
+  base_dir: ./results/experiments
+  save_images: true
+  create_timestamp_dir: false
+  kitti_native_format: true

@@ -1,0 +1,42 @@
+experiment:
+  name: regression_tum_5f_night_fog_blur
+  description: "Regression check on TUM with composite night, fog, and speed blur"
+  seed: 42
+
+dataset:
+  type: tum
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  sequence: "freiburg1_desk"
+  max_frames: 5
+  load_stereo: false
+  skip_depth: false
+
+perturbations:
+  - name: night_fog_blur
+    type: composite
+    enabled: true
+    parameters:
+      mode: sequential
+      modules:
+        - name: night
+          type: daynight
+          parameters:
+            direction: day_to_night
+            enable_fp16: true
+        - name: fog
+          type: fog
+          parameters:
+            visibility_m: 20
+            encoder: vitb
+            max_depth_range: 20.0
+        - name: blur
+          type: speed_blur
+          parameters:
+            speed: 20
+            exposure_time: 0.03
+            max_blur_px: 80.0
+
+output:
+  base_dir: ./results/regression
+  save_images: true
+  create_timestamp_dir: false
