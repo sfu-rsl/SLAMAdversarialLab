@@ -345,7 +345,7 @@ If you use SLAMAdverserialLab in your research, cite:
 
 ```bibtex
 @software{slamadverseriallab2026,
-  title = {SLAMAdverserialLab: A Framework for Visual Perturbation-based SLAM Evaluation},
+  title = {SLAM Adversarial Lab: An Extensible Framework for Visual SLAM Robustness Evaluation under Adverse Conditions},
   year = {2026},
   url = {https://github.com/mohhef/SLAMAdverserialLab}
 }
