@@ -341,16 +341,18 @@ MIT License. See [`LICENSE`](LICENSE).
 
 ## Citation
 
-If you use SLAMAdverserialLab in your research, cite:
+If you use SLAMAdversarialLab in your research, cite:
 
 ```bibtex
-@software{slamadverseriallab2026,
-      title={SLAM Adversarial Lab: An Extensible Framework for Visual SLAM Robustness Evaluation under Adverse Conditions}, 
-      author={Mohamed Hefny and Karthik Dantu and Steven Y. Ko},
-      year={2026},
-      eprint={2603.17165},
-      archivePrefix={arXiv},
-      primaryClass={cs.RO},
-      url={https://arxiv.org/abs/2603.17165},
+@inproceedings{hefny2026sal,
+  author    = {Mohamed Hefny and Karthik Dantu and Steven Y. Ko},
+  title     = {{SLAM} Adversarial Lab: An Extensible Framework
+               for Visual {SLAM} Robustness Evaluation
+               under Adverse Conditions},
+  booktitle = {2026 IEEE/RSJ International Conference on
+               Intelligent Robots and Systems (IROS)},
+  year      = {2026},
+  note      = {Accepted for publication},
+  url       = {https://arxiv.org/abs/2603.17165}
 }
 ```
