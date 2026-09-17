@@ -6,9 +6,9 @@ from typing import List, Optional
 import numpy as np
 import pytest
 
-from slamadverseriallab.config.schema import PerturbationConfig
-from slamadverseriallab.datasets.base import CameraIntrinsics
-from slamadverseriallab.modules.base import ModuleSetupContext, PerturbationModule
+from slamadversariallab.config.schema import PerturbationConfig
+from slamadversariallab.datasets.base import CameraIntrinsics
+from slamadversariallab.modules.base import ModuleSetupContext, PerturbationModule
 
 
 class _DatasetCameraResolutionStub:
@@ -180,34 +180,50 @@ def test_foundation_stereo_uses_resolved_camera_dirs(tmp_path: Path) -> None:
     left_dir.mkdir(parents=True, exist_ok=True)
     right_dir.mkdir(parents=True, exist_ok=True)
 
-    module = _make_module(
-        _DatasetCameraResolutionStub(
-            left_camera="mav0/cam0/data",
-            right_camera="mav0/cam1/data",
+    stub_images = [
+        left_dir / "000000.png",
+        left_dir / "000001.png",
+        right_dir / "000000.png",
+        right_dir / "000001.png",
+    ]
+    for path in stub_images:
+        path.touch()
+
+    try:
+        module = _make_module(
+            _DatasetCameraResolutionStub(
+                left_camera="mav0/cam0/data",
+                right_camera="mav0/cam1/data",
+            )
         )
-    )
-    module.depth_dirs = {}
+        module.depth_dirs = {}
 
-    calls = []
+        calls = []
 
-    def _fake_run_foundation_stereo(left_images_dir: Path, right_images_dir: Path, output_dir: Path, fx: float, baseline: float):
-        calls.append((left_images_dir, right_images_dir, output_dir, fx, baseline))
+        def _fake_run_foundation_stereo(left_images_dir: Path, right_images_dir: Path, output_dir: Path, fx: float, baseline: float, max_frames: Optional[int] = None):
+            calls.append((left_images_dir, right_images_dir, output_dir, fx, baseline))
+            output_dir.mkdir(parents=True, exist_ok=True)
+            for src in sorted(left_images_dir.glob("*.png")):
+                (output_dir / src.name).touch()
 
-    module._run_foundation_stereo = _fake_run_foundation_stereo  # type: ignore[method-assign]
-    module._depth_cache_complete = lambda image_dir, depth_dir: False  # type: ignore[method-assign]
+        module._run_foundation_stereo = _fake_run_foundation_stereo  # type: ignore[method-assign]
+        module._depth_cache_complete = lambda image_dir, depth_dir: False  # type: ignore[method-assign]
 
-    module._setup_foundation_stereo_depth(
-        source_path=tmp_path,
-        dataset=module.dataset,
-        cameras=["left", "right"],
-    )
+        module._setup_foundation_stereo_depth(
+            source_path=tmp_path,
+            dataset=module.dataset,
+            cameras=["left", "right"],
+        )
 
-    assert len(calls) == 2
-    assert calls[0][0] == left_dir
-    assert calls[0][1] == right_dir
-    assert calls[1][0] == right_dir
-    assert calls[1][1] == left_dir
-    assert set(module.depth_dirs.keys()) == {"left", "right"}
+        assert len(calls) == 2
+        assert calls[0][0] == left_dir
+        assert calls[0][1] == right_dir
+        assert calls[1][0] == right_dir
+        assert calls[1][1] == left_dir
+        assert set(module.depth_dirs.keys()) == {"left", "right"}
+    finally:
+        for path in stub_images:
+            path.unlink(missing_ok=True)
 
 
 def test_sensor_depth_loading_fails_fast_when_dataset_returns_none(tmp_path: Path) -> None:

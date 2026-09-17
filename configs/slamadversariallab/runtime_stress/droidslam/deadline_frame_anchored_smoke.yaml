@@ -1,0 +1,48 @@
+experiment:
+  name: deadline_frame_anchored_smoke_droidslam
+  description: >-
+    Frame-anchored phase smoke test. TUM freiburg1_desk, 200 raw frames /
+    stride=2 -> 100 sampled, target 15 fps. The CPU is capped to 0.5 cores
+    until the SLAM reaches sampled frame 50, then released. The phase
+    switch is anchored to the live frame count (reported by the deadline
+    iterator to the bind-mounted progress file and read by the host
+    orchestrator), not a wall-clock second -- so it lands at frame 50
+    regardless of pacing. Verifies the container->host progress flow and
+    frame-based phase selection end to end.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 200
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: cpu_release_at_frame_50
+      enabled: true
+      realtime:
+        target_fps: 15
+        warmup_frames: 5
+      phases:
+        - name: cpu_limited
+          until_frame: 50
+          controls:
+            cpu:
+              max_cores: 0.5
+        - name: cpu_free
+          until_frame: 1000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

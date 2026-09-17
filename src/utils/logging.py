@@ -1,4 +1,4 @@
-"""Centralized logging configuration for SLAMAdverserialLab."""
+"""Centralized logging configuration for SLAMAdversarialLab."""
 
 import logging
 import os
@@ -53,7 +53,7 @@ class ColoredFormatter(logging.Formatter):
 def _package_root(name: str) -> str:
     """Return top-level logger namespace for a module logger name."""
     if not name:
-        return "slamadverseriallab"
+        return "slamadversariallab"
     return name.split(".", 1)[0]
 
 

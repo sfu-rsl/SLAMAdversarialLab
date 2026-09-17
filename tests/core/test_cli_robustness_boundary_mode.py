@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from slamadverseriallab.cli import create_parser, evaluate_command
+from slamadversariallab.cli import create_parser, evaluate_command
 
 
 def test_evaluate_mode_includes_robustness_boundary_choice() -> None:
@@ -48,7 +48,7 @@ def test_evaluate_command_routes_to_robustness_boundary_pipeline(
             return {"summary_path": tmp_path / "boundary_summary.json"}
 
     monkeypatch.setattr(
-        "slamadverseriallab.pipelines.robustness_boundary.RobustnessBoundaryPipeline",
+        "slamadversariallab.pipelines.robustness_boundary.RobustnessBoundaryPipeline",
         _StubBoundaryPipeline,
     )
 

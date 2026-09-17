@@ -5,10 +5,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from slamadverseriallab.config.schema import PerturbationConfig
-from slamadverseriallab.datasets.base import CameraIntrinsics
-from slamadverseriallab.modules.base import ModuleSetupContext
-from slamadverseriallab.modules.transport.video_encoding_base import VideoEncodingModuleBase
+from slamadversariallab.config.schema import PerturbationConfig
+from slamadversariallab.datasets.base import CameraIntrinsics
+from slamadversariallab.modules.base import ModuleSetupContext
+from slamadversariallab.modules.transport.video_encoding_base import VideoEncodingModuleBase
 
 
 class _VideoEncodingStub(VideoEncodingModuleBase):
@@ -64,7 +64,7 @@ def test_video_encoding_base_uses_context_source_path(monkeypatch: pytest.Monkey
 
 def test_fog_incremental_uses_context_total_frames(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     pytest.importorskip("torch")
-    from slamadverseriallab.modules.scene.fog import FogModule
+    from slamadversariallab.modules.scene.fog import FogModule
 
     monkeypatch.setattr(
         FogModule,
@@ -109,7 +109,7 @@ def test_fog_incremental_uses_context_total_frames(monkeypatch: pytest.MonkeyPat
 
 def test_fog_context_update_refreshes_depth_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     pytest.importorskip("torch")
-    from slamadverseriallab.modules.scene.fog import FogModule
+    from slamadversariallab.modules.scene.fog import FogModule
 
     calls = []
 
@@ -164,7 +164,7 @@ def test_fog_context_update_refreshes_depth_runtime(monkeypatch: pytest.MonkeyPa
 
 def test_rain_context_update_refreshes_depth_runtime(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     pytest.importorskip("torch")
-    from slamadverseriallab.modules.scene.rain import RainModule
+    from slamadversariallab.modules.scene.rain import RainModule
 
     calls = []
 
@@ -220,7 +220,7 @@ def test_rain_context_update_refreshes_depth_runtime(monkeypatch: pytest.MonkeyP
 
 
 def test_rain_depth_aliases_use_active_depth_directory(tmp_path: Path) -> None:
-    from slamadverseriallab.modules.scene.rain import RainModule
+    from slamadversariallab.modules.scene.rain import RainModule
 
     source_path = tmp_path / "sequence"
     source_path.mkdir(parents=True, exist_ok=True)
@@ -258,7 +258,7 @@ def test_rain_depth_aliases_use_active_depth_directory(tmp_path: Path) -> None:
 
 
 def test_rain_depth_aliases_reject_conflicting_existing_path(tmp_path: Path) -> None:
-    from slamadverseriallab.modules.scene.rain import RainModule
+    from slamadversariallab.modules.scene.rain import RainModule
 
     source_path = tmp_path / "sequence"
     source_path.mkdir(parents=True, exist_ok=True)
@@ -291,7 +291,7 @@ def test_rain_depth_aliases_reject_conflicting_existing_path(tmp_path: Path) -> 
 
 
 def test_speed_blur_uses_shared_depth_loader(tmp_path: Path) -> None:
-    from slamadverseriallab.modules.optics.speed_blur import SpeedBlurModule
+    from slamadversariallab.modules.optics.speed_blur import SpeedBlurModule
 
     class _DatasetStub:
         def __init__(self):
@@ -325,7 +325,7 @@ def test_speed_blur_uses_shared_depth_loader(tmp_path: Path) -> None:
 
 
 def test_speed_blur_requires_rgb_filename_for_depth_loading(tmp_path: Path) -> None:
-    from slamadverseriallab.modules.optics.speed_blur import SpeedBlurModule
+    from slamadversariallab.modules.optics.speed_blur import SpeedBlurModule
 
     class _DatasetStub:
         path = tmp_path
@@ -356,7 +356,7 @@ def test_speed_blur_requires_rgb_filename_for_depth_loading(tmp_path: Path) -> N
 
 
 def test_speed_blur_caches_intrinsics_per_camera(tmp_path: Path) -> None:
-    from slamadverseriallab.modules.optics.speed_blur import SpeedBlurModule
+    from slamadversariallab.modules.optics.speed_blur import SpeedBlurModule
 
     class _DatasetStub:
         def __init__(self):

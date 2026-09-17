@@ -1,0 +1,45 @@
+experiment:
+  name: runtime_stress_euroc_okvis2x_memory_breaking_podman
+  description: >-
+    Memory breaking-point run for OKVIS2-X visual-inertial on EuRoC V1_01_easy.
+    The uncapped profile peaks at about 1.2 GB RSS, so
+    the 900 MB cgroup cap sits below the working set: expect the kernel
+    OOM-kill (exit code 137, execution_ok false, no trajectory). Demonstrates
+    the memory controller enforces rather than just attaches. Pair with the cpu smoke
+    for the attach-only signal.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: mem_900mb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 600
+          controls:
+            memory:
+              max_mb: 900
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

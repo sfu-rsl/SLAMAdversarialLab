@@ -1,0 +1,14 @@
+# The prebuilt cuVSLAM wheel. At ~116 MB it is over GitHub's 100 MB per-file
+# limit, so it cannot live in the repo. The Dockerfile COPYs it out of this
+# build context rather than fetching it, so `docker build` here fails with a
+# missing-file error until you put it back:
+#
+#   gh release download v17.0.0 --repo nvidia-isaac/cuVSLAM \
+#     --pattern 'cuvslam-17.0.0+cu12-cp310-cp310-manylinux_2_35_x86_64.whl'
+#
+# Match the pin in the Dockerfile: 17.0.0, cu12, cp310, manylinux_2_35_x86_64.
+# CUDA >= 12.4 is the real floor. libcuvslam.so links cusparseSpMV_preprocess,
+# which 12.1 does not have, and the import dies on an undefined symbol.
+*.whl
+
+__pycache__/

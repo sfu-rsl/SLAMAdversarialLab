@@ -1,4 +1,4 @@
-"""Core pipeline components for SLAMAdverserialLab."""
+"""Core pipeline components for SLAMAdversarialLab."""
 
 from .pipeline import Pipeline
 from .frame import Frame

@@ -5,10 +5,10 @@ from typing import Dict, List, Optional
 
 import pytest
 
-from slamadverseriallab.algorithms.types import SensorMode
-from slamadverseriallab.config.parser import Config
-from slamadverseriallab.config.schema import DatasetConfig, ExperimentConfig, OutputConfig
-from slamadverseriallab.pipelines.evaluation import EvaluationPipeline
+from slamadversariallab.algorithms.types import SensorMode
+from slamadversariallab.config.parser import Config
+from slamadversariallab.config.schema import DatasetConfig, ExperimentConfig, OutputConfig
+from slamadversariallab.pipelines.evaluation import EvaluationPipeline
 
 
 class _AlgorithmStub:
@@ -52,6 +52,9 @@ class _DatasetStub:
 
     def get_algorithm_timestamps(self) -> Dict[int, float]:
         return dict(self._timestamps_by_frame)
+
+    def get_image_paths(self, camera: str = "left") -> List[Path]:
+        return [Path(f"/stub/rgb/{i:06d}.png") for i in range(len(self._timestamps_by_frame))]
 
     def get_ground_truth_path(self):
         return self._gt_path
@@ -98,14 +101,14 @@ def test_evaluation_uses_dataset_camera_roles_not_load_stereo_flag(tmp_path: Pat
 
     create_calls = {"count": 0}
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.load_config", lambda _p: config)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
 
     def _fake_create_dataset(_cfg):
         create_calls["count"] += 1
         return dataset
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.create_dataset", _fake_create_dataset)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.create_dataset", _fake_create_dataset)
 
     pipeline = EvaluationPipeline(config_path=config_path, slam_algorithm="stub")
 
@@ -121,9 +124,9 @@ def test_evaluation_prefers_rgbd_for_tum_when_dataset_is_mono(tmp_path: Path, mo
     algorithm = _AlgorithmStub({"tum": ["mono", "rgbd"]})
     dataset = _DatasetStub(active_roles=["left"])
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.load_config", lambda _p: config)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.create_dataset", lambda _cfg: dataset)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.create_dataset", lambda _cfg: dataset)
 
     pipeline = EvaluationPipeline(config_path=config_path, slam_algorithm="stub")
 
@@ -138,9 +141,9 @@ def test_evaluation_fails_fast_when_dataset_contract_missing_left_camera(tmp_pat
     algorithm = _AlgorithmStub({"kitti": ["mono", "stereo"]})
     dataset = _DatasetStub(active_roles=["right"])
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.load_config", lambda _p: config)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.create_dataset", lambda _cfg: dataset)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.create_dataset", lambda _cfg: dataset)
 
     with pytest.raises(ValueError, match="must expose an active 'left' camera role"):
         EvaluationPipeline(config_path=config_path, slam_algorithm="stub")
@@ -156,9 +159,9 @@ def test_evaluation_run_request_includes_dataset_resolved_camera_paths(tmp_path:
         camera_dirs={"left": "mav0/cam0/data", "right": "mav0/cam1/data"},
     )
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.load_config", lambda _p: config)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.create_dataset", lambda _cfg: dataset)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.create_dataset", lambda _cfg: dataset)
 
     pipeline = EvaluationPipeline(config_path=config_path, slam_algorithm="stub")
 
@@ -177,6 +180,11 @@ def test_evaluation_run_request_includes_dataset_resolved_camera_paths(tmp_path:
         1: 0.1,
         2: 0.2,
     }
+    assert request.extras["frame_image_paths"] == [
+        "/stub/rgb/000000.png",
+        "/stub/rgb/000001.png",
+        "/stub/rgb/000002.png",
+    ]
 
 
 def test_evaluation_run_request_fails_for_non_monotonic_timestamps(tmp_path: Path, monkeypatch) -> None:
@@ -189,9 +197,9 @@ def test_evaluation_run_request_fails_for_non_monotonic_timestamps(tmp_path: Pat
         timestamps_by_frame={0: 0.0, 1: 0.1, 2: 0.1},
     )
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.load_config", lambda _p: config)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.create_dataset", lambda _cfg: dataset)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.create_dataset", lambda _cfg: dataset)
 
     pipeline = EvaluationPipeline(config_path=config_path, slam_algorithm="stub")
 
@@ -210,9 +218,9 @@ def test_evaluation_requires_dataset_sequence_for_run_request(tmp_path: Path, mo
     algorithm = _AlgorithmStub({"kitti": ["mono", "stereo"]})
     dataset = _DatasetStub(active_roles=["left"])
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.load_config", lambda _p: config)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
-    monkeypatch.setattr("slamadverseriallab.pipelines.evaluation.create_dataset", lambda _cfg: dataset)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.get_slam_algorithm", lambda _name: algorithm)
+    monkeypatch.setattr("slamadversariallab.pipelines.evaluation.create_dataset", lambda _cfg: dataset)
 
     pipeline = EvaluationPipeline(
         config_path=config_path,

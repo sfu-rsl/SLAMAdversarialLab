@@ -7,7 +7,7 @@ set -e  # Exit on error
 # Change to project root directory
 cd "$(dirname "$0")/.."
 
-CONFIGS_DIR="configs/slamadverseriallab/experiments"
+CONFIGS_DIR="configs/slamadversariallab/experiments"
 
 # KITTI experiments and algorithms
 KITTI_CONFIGS=(
@@ -46,7 +46,7 @@ for config in "${KITTI_CONFIGS[@]}"; do
     echo "--- $config_name ---"
     for algo in "${KITTI_ALGORITHMS[@]}"; do
         echo ">>> Running: $config with $algo"
-        python -m slamadverseriallab evaluate "$CONFIGS_DIR/$config" --slam "$algo" --num-runs 3 || echo "FAILED: $config with $algo"
+        python -m slamadversariallab evaluate "$CONFIGS_DIR/$config" --slam "$algo" --num-runs 3 || echo "FAILED: $config with $algo"
     done
 done
 
@@ -61,7 +61,7 @@ for config in "${TUM_CONFIGS[@]}"; do
     echo "--- $config_name ---"
     for algo in "${TUM_ALGORITHMS[@]}"; do
         echo ">>> Running: $config with $algo"
-        python -m slamadverseriallab evaluate "$CONFIGS_DIR/$config" --slam "$algo" --num-runs 3 || echo "FAILED: $config with $algo"
+        python -m slamadversariallab evaluate "$CONFIGS_DIR/$config" --slam "$algo" --num-runs 3 || echo "FAILED: $config with $algo"
     done
 done
 

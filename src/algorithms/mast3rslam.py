@@ -1,26 +1,73 @@
-"""MASt3R-SLAM algorithm implementation."""
+"""MASt3R-SLAM algorithm implementation.
+
+MASt3R-SLAM: Real-Time Dense SLAM with 3D Reconstruction Priors
+(CVPR 2025). Foundation-model monocular SLAM sibling to VGGT-SLAM.
+
+Two execution runtimes are supported, mirroring VGGT-SLAM, DROID-SLAM,
+and Photo-SLAM:
+
+* ``container_runtime=None`` (default): host conda environment
+  ``mast3r-slam`` at ``deps/slam-algorithms/MASt3R-SLAM`` invoked via
+  ``python main.py --dataset ... --config ...``.
+* ``container_runtime="podman"``: ``mast3r-slam:latest`` Podman image.
+  This path is the one runtime-stress scenarios use to exercise HAMi
+  GPU caps against MASt3R-SLAM's foundation-model + ``mast3r_backends``
+  + ``lietorch`` CUDA hot path.
+"""
 
 import logging
 import os
 import re
-import subprocess
 import shutil
+import subprocess
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+from .config_utils import tee_console_output
 from .base import ExecutionSpec, SLAMAlgorithm
 from .types import SLAMRunRequest, SensorMode, SLAMRuntimeContext
 
 logger = logging.getLogger(__name__)
 
 
-class MASt3RSLAMAlgorithm(SLAMAlgorithm):
-    """MASt3R-SLAM via conda environment. Monocular dense SLAM with 3D reconstruction priors."""
+_PODMAN_IMAGE = "mast3r-slam:latest"
+_CONTAINER_DATASET_PARENT = "/dataset"
+# MASt3R-SLAM's load_dataset() picks the dataset class by string-matching
+# 'tum' / 'euroc' / 'freiburg{N}' segments in the path. Mounting the
+# staged TUM root at /dataset (no markers) would silently route to the
+# generic RGBFiles fallback, which scans the directory for images and
+# never reads rgb.txt -- leaving rgb_files empty. Build the container
+# path so it carries both 'tum' and 'freiburg{N}' segments.
+# MASt3R-SLAM writes the trajectory to ``logs/<dataset_stem>.txt`` at its
+# working directory. Bind the host output dir at the container's logs
+# path so the trajectory lands directly in the host output dir.
+_CONTAINER_OUTPUT_PATH = "/mast3r-slam/logs"
+_CONTAINER_CHECKPOINTS_PATH = "/mast3r-slam/checkpoints"
+_CONTAINER_CONFIG_PATH = "/mast3r-slam/config"
+_CONTAINER_TORCH_HUB_PATH = "/root/.cache/torch/hub"
+_CONTAINER_WORKDIR = "/mast3r-slam"
 
-    def __init__(self):
+
+class MASt3RSLAMAlgorithm(SLAMAlgorithm):
+    """MASt3R-SLAM with dual conda+podman runtimes (mono TUM only today)."""
+
+    def __init__(self, container_runtime: Optional[str] = None):
+        if container_runtime is not None and container_runtime != "podman":
+            raise ValueError(
+                f"container_runtime must be None or 'podman', got {container_runtime!r}"
+            )
+        self.container_runtime = container_runtime
         self.mast3r_path = Path(__file__).parent.parent.parent / "deps" / "slam-algorithms" / "MASt3R-SLAM"
         self.conda_env = "mast3r-slam"
+        self.docker_image = _PODMAN_IMAGE
+
+    @property
+    def runtime_stress_target_kind(self) -> str:
+        if self.container_runtime is None:
+            return "host_process_group"
+        return f"{self.container_runtime}_container"
 
     @property
     def name(self) -> str:
@@ -54,6 +101,61 @@ class MASt3RSLAMAlgorithm(SLAMAlgorithm):
 
         if request.dataset_type.lower() == "tum":
             self._resolve_freiburg_id_from_sequence(ctx.sequence_name)
+
+        if self.container_runtime is None:
+            # Conda path needs the env to exist plus the in-repo checkpoints.
+            # We don't probe conda binaries here (matches DROID/VGGT/Photo
+            # conda-path preflight) — the conda activate will fail loudly if
+            # missing. Just check that the upstream checkpoint files MASt3R-SLAM
+            # needs at runtime are in tree.
+            self._require_mast3r_checkpoints()
+            return
+
+        # Podman path: need the runtime + image. Don't fail on missing image —
+        # warn so the operator can build it.
+        if shutil.which(self.container_runtime) is None:
+            raise RuntimeError(
+                f"container_runtime is '{self.container_runtime}' but the binary "
+                "is not on PATH. Install it or change container_runtime."
+            )
+        try:
+            result = subprocess.run(
+                [self.container_runtime, "image", "exists", self.docker_image],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                logger.warning(
+                    "Podman image '%s' not found locally. Build with: "
+                    "cd %s && podman build -t %s .",
+                    self.docker_image,
+                    self.mast3r_path,
+                    self.docker_image,
+                )
+        except Exception as exc:
+            logger.info(
+                "Skipping podman image existence check: %s", exc,
+            )
+
+        # Podman path still depends on the host's MASt3R-SLAM checkpoints
+        # directory because the image bind-mounts it read-only at runtime
+        # (the foundation-model weights are 2.7 GB; bundling them into the
+        # image would balloon it from ~12 GB to ~15 GB and slow `podman pull`
+        # on every reuse).
+        self._require_mast3r_checkpoints()
+
+    def _require_mast3r_checkpoints(self) -> None:
+        """Validate that the MASt3R-SLAM foundation-model weights are in tree."""
+        checkpoints = self.mast3r_path / "checkpoints"
+        primary = checkpoints / "MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric.pth"
+        if not primary.exists():
+            raise RuntimeError(
+                f"MASt3R-SLAM checkpoint not found at {primary}. "
+                f"Run: cd {self.mast3r_path} && ./install_all.sh "
+                "(or download manually from https://download.europe.naverlabs.com/ComputerVision/MASt3R)."
+            )
 
     def _stage_dataset(
         self,
@@ -98,16 +200,274 @@ class MASt3RSLAMAlgorithm(SLAMAlgorithm):
         output_dir = inputs["output_dir"]
         log_basenames = inputs["log_basenames"]
 
-        return ExecutionSpec(
-            cmd=["mast3rslam"],
-            custom_runner=lambda _spec, prepared_path=prepared_path, config_file=config_file, output_dir=output_dir, log_basenames=log_basenames: self._run_mast3rslam(
-                prepared_path,
-                config_file,
-                output_dir,
-                log_basenames,
-            ),
-            log_prefix="MASt3R-SLAM",
+        if self.container_runtime is None:
+            return ExecutionSpec(
+                cmd=["mast3rslam"],
+                custom_runner=lambda _spec, prepared_path=prepared_path, config_file=config_file, output_dir=output_dir, log_basenames=log_basenames: self._run_mast3rslam(
+                    prepared_path,
+                    config_file,
+                    output_dir,
+                    log_basenames,
+                ),
+                log_prefix="MASt3R-SLAM",
+            )
+
+        return self._build_container_execution_spec(
+            ctx=ctx,
+            prepared_path=prepared_path,
+            config_file=config_file,
+            output_dir=output_dir,
         )
+
+    def _build_container_execution_spec(
+        self,
+        ctx: SLAMRuntimeContext,
+        prepared_path: Path,
+        config_file: Path,
+        output_dir: Path,
+    ) -> ExecutionSpec:
+        """Build a Podman execution spec that runs ``mast3r-slam:latest``.
+
+        The container ships the MASt3R-SLAM source tree + the prebuilt
+        ``mast3r_slam_backends`` native CUDA extension + lietorch + the
+        in3d/mast3r thirdparty packages.
+
+        ``prepared_path`` (the host's staged TUM root from
+        ``_prepare_dataset``) is bind-mounted under ``_CONTAINER_DATASET_PARENT``
+        at a path whose components include 'tum' and 'freiburg{N}' markers
+        that MASt3R-SLAM's ``load_dataset`` string-matches on.
+        Because that staged dir uses an absolute-path symlink for ``rgb/``
+        pointing into the real perturbed camera dir, we also bind-mount
+        that target at its same host path inside the container so the
+        symlink resolves.
+
+        The trajectory file is written to ``/mast3r-slam/logs/<stem>.txt``
+        by ``mast3r_slam.evaluate.save_traj``; we bind-mount the host
+        output dir at that exact path so the trajectory lands directly on
+        the host with no post-exit copy.
+        """
+        container_name = self._build_runtime_stress_container_name(ctx, output_dir)
+        torch_hub_cache = Path.home() / ".cache" / "torch" / "hub"
+        torch_hub_cache.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Checkpoints (2.9 GB) live in the host repo at
+        # deps/slam-algorithms/MASt3R-SLAM/checkpoints. The Dockerfile
+        # intentionally does NOT COPY them; bind-mount read-only at runtime.
+        host_checkpoints = self.mast3r_path / "checkpoints"
+
+        # MASt3R-SLAM reads ``config/<name>.yaml`` relative to the working
+        # dir. Map the host's resolved config file into the container's
+        # config tree by relative path under mast3r_path. If the file lives
+        # outside mast3r_path (external config), fall back to bind-mounting
+        # the file's absolute host path.
+        host_config = config_file.resolve()
+        container_config = self._translate_config_path_to_container(host_config)
+
+        # Build a container dataset path that carries the dataset-type and
+        # freiburg-variant markers MASt3R-SLAM's ``load_dataset`` matches on.
+        freiburg_id = self._resolve_freiburg_id_from_sequence(ctx.sequence_name)
+        container_dataset_path = (
+            f"{_CONTAINER_DATASET_PARENT}/tum/rgbd_dataset_{freiburg_id}_data"
+        )
+
+        container_cmd: List[str] = [
+            self.container_runtime, "run", "--rm",
+            "--name", container_name,
+            # MASt3R-SLAM allocates SharedKeyframes/SharedStates over
+            # multiprocessing.Manager, which backs IPC tensors in /dev/shm.
+            # Podman's default 64 MB /dev/shm is too small and SharedStates
+            # init dies with SIGBUS (exit 135) right after config print, no
+            # Python traceback. 8 GB matches DROID-SLAM/Photo-SLAM scale.
+            "--shm-size=8g",
+            "-v", f"{prepared_path.resolve()}:{container_dataset_path}:ro",
+            "-v", f"{output_dir.resolve()}:{_CONTAINER_OUTPUT_PATH}",
+            "-v", f"{host_checkpoints.resolve()}:{_CONTAINER_CHECKPOINTS_PATH}:ro",
+            "-v", f"{torch_hub_cache.resolve()}:{_CONTAINER_TORCH_HUB_PATH}",
+        ]
+
+        # The staged TUM root's rgb/ entry is a symlink to the perturbed
+        # camera dir (absolute host path); bind-mount that target so the
+        # symlink resolves inside the container.
+        for host_path in self._collect_symlink_target_mounts(prepared_path):
+            container_cmd.extend(["-v", f"{host_path}:{host_path}:ro"])
+
+        # External configs land at their absolute host path; bind-mount
+        # the file so the container can read it.
+        if container_config == str(host_config):
+            container_cmd.extend(
+                ["-v", f"{host_config}:{host_config}:ro"]
+            )
+
+        extras = self._runtime_stress_launch_extras()
+        extras_devices = list(extras.get("devices") or [])
+        # MASt3R-SLAM always needs CUDA (foundation model + lietorch +
+        # mast3r_backends); ensure the GPU is always attached. HAMi adds
+        # extra env/mounts on top.
+        devices = extras_devices if extras_devices else ["nvidia.com/gpu=all"]
+
+        for key, value in (extras.get("env") or {}).items():
+            container_cmd.extend(["-e", f"{key}={value}"])
+        for mount in (extras.get("mounts") or []):
+            src, dst, mode = mount
+            container_cmd.extend(["-v", f"{src}:{dst}:{mode}"])
+        for device in devices:
+            container_cmd.extend(["--device", device])
+        # Launch-time flags (e.g. a constant memory cap applied at run rather
+        # than by a later update, which hung on at least one system).
+        container_cmd.extend(extras.get("run_flags") or [])
+
+        # SAL real-time deadline harness propagation (no-op when the
+        # harness is not active in the host env).
+        from ..runtime_stress.podman_injection import (
+            apply_entrypoint_override,
+            apply_realtime_to_podman_cmd,
+        )
+        apply_realtime_to_podman_cmd(container_cmd, _CONTAINER_OUTPUT_PATH)
+
+        # Override the container's baked-in snapshot of main.py with the
+        # host's current copy so the deadline-harness hooks (and any other
+        # host-side edit) reach the SLAM without a 15-25 min image rebuild.
+        apply_entrypoint_override(
+            container_cmd,
+            host_path=Path(__file__).resolve().parents[2]
+            / "deps" / "slam-algorithms" / "MASt3R-SLAM" / "main.py",
+            container_path=f"{_CONTAINER_WORKDIR}/main.py",
+        )
+
+        # When HAMi is active, pre-create + bind-mount the per-container
+        # shared cache file so GpuHamiController.apply() can mutate the
+        # cap mid-run by writing directly to the mmap'd region.
+        hami_active = "LD_PRELOAD" in (extras.get("env") or {})
+        if hami_active:
+            from ..runtime_stress.hami_controller import (
+                HAMI_SHARED_CACHE,
+                prepare_hami_cache_file,
+            )
+            cache_host_path = prepare_hami_cache_file(container_name)
+            container_cmd.extend(
+                ["-v", f"{cache_host_path}:{HAMI_SHARED_CACHE}:rw"]
+            )
+
+        container_cmd.append(self.docker_image)
+
+        # MASt3R-SLAM's main.py uses torch.multiprocessing.set_start_method
+        # ("spawn") which requires the in3d/mast3r thirdparty packages on
+        # PYTHONPATH. The Dockerfile pip installs them so they're on path
+        # already, but mirror the host wrapper's PYTHONPATH composition to
+        # be defensive against image-side path skew.
+        main_cmd = (
+            f"cd {_CONTAINER_WORKDIR} && "
+            f"PYTHONPATH=\"{_CONTAINER_WORKDIR}/thirdparty/in3d:"
+            f"{_CONTAINER_WORKDIR}/thirdparty/mast3r:"
+            f"{_CONTAINER_WORKDIR}:${{PYTHONPATH:-}}\" "
+            f"python main.py "
+            f"--dataset {container_dataset_path} "
+            f"--config {container_config} "
+            f"--no-viz"
+        )
+        container_cmd.extend(
+            ["bash", "-c", tee_console_output(main_cmd, _CONTAINER_OUTPUT_PATH)]
+        )
+
+        logger.info(
+            "  Executing MASt3R-SLAM via %s container: %s",
+            self.container_runtime, container_name,
+        )
+
+        io_target_paths = [str(prepared_path.resolve()), str(output_dir.resolve())]
+
+        return ExecutionSpec(
+            cmd=container_cmd,
+            stream_output=False,
+            log_prefix="MASt3R-SLAM",
+            target_kind=f"{self.container_runtime}_container",
+            target_metadata={
+                "container_name": container_name,
+                "io_target_paths": io_target_paths,
+            },
+        )
+
+    def _build_runtime_stress_container_name(
+        self,
+        ctx: SLAMRuntimeContext,
+        output_dir: Path,
+    ) -> str:
+        """Build a unique podman-compliant container name for one MASt3R-SLAM run."""
+        raw_name = f"mast3rslam-{ctx.sequence_name}-{output_dir.name}-{uuid.uuid4().hex[:8]}"
+        sanitized = re.sub(r"[^a-zA-Z0-9_.-]+", "-", raw_name.lower()).strip("-")
+        return sanitized[:120]
+
+    def _translate_config_path_to_container(self, host_config_path: Path) -> str:
+        """Map a host-side MASt3R-SLAM config path to its container path.
+
+        The ``config/`` tree is COPYed into the image verbatim, so the
+        relative layout matches. External configs (anywhere on the host)
+        fall back to using their absolute host path inside the container,
+        which requires the operator's bind-mount to make them visible;
+        we log a warning so a misconfigured external config doesn't fail
+        silently.
+        """
+        try:
+            relative = host_config_path.resolve().relative_to(self.mast3r_path.resolve())
+        except ValueError:
+            logger.warning(
+                "  External MASt3R-SLAM config %s is outside of %s; the "
+                "container path will not resolve unless the file is "
+                "bind-mounted. The wrapper bind-mounts it at its absolute "
+                "host path so this works as long as the file is readable.",
+                host_config_path, self.mast3r_path,
+            )
+            return str(host_config_path.resolve())
+        return f"{_CONTAINER_WORKDIR}/{relative.as_posix()}"
+
+    def _collect_symlink_target_mounts(self, dataset_root: Path) -> List[str]:
+        """Return absolute host paths to bind-mount so absolute-path
+        symlinks under ``dataset_root`` resolve inside the container.
+
+        ``_prepare_dataset`` builds the staged TUM root by writing an
+        absolute symlink ``rgb -> /abs/path/to/perturbed_rgb``. Inside the
+        container, that symlink points to a host-absolute path the
+        container can't see unless we bind-mount its target. This helper
+        walks the staged tree once and returns the set of target paths the
+        container needs.
+        """
+        if not dataset_root.exists():
+            return []
+
+        seen: List[str] = []
+        seen_set: set[str] = set()
+
+        def _maybe_record(entry: Path) -> None:
+            if not entry.is_symlink():
+                return
+            try:
+                target = Path(os.readlink(entry))
+            except OSError:
+                return
+            if not target.is_absolute():
+                # Relative-path symlinks resolve naturally inside the
+                # container because the host_root is already mounted.
+                return
+            target_str = str(target.resolve())
+            if target_str in seen_set:
+                return
+            if not Path(target_str).exists():
+                return
+            seen.append(target_str)
+            seen_set.add(target_str)
+
+        for root, dirs, files in os.walk(str(dataset_root), followlinks=False):
+            root_path = Path(root)
+            for d in dirs:
+                _maybe_record(root_path / d)
+            for f in files:
+                _maybe_record(root_path / f)
+        # Top-level symlinks (siblings of dataset_root) aren't covered by
+        # os.walk's traversal of dataset_root itself; cover those too.
+        for entry in dataset_root.iterdir():
+            _maybe_record(entry)
+        return seen
 
     def _execute(self, request: SLAMRunRequest, ctx: SLAMRuntimeContext) -> bool:
         inputs = ctx.execution_inputs
@@ -351,7 +711,7 @@ class MASt3RSLAMAlgorithm(SLAMAlgorithm):
         output_dir: Path,
         log_basenames: List[str],
     ) -> bool:
-        """Execute MASt3R-SLAM."""
+        """Execute MASt3R-SLAM via host conda environment."""
         logger.info("  Executing MASt3R-SLAM...")
 
         conda_init = "source ~/miniconda3/etc/profile.d/conda.sh"
@@ -382,23 +742,8 @@ class MASt3RSLAMAlgorithm(SLAMAlgorithm):
 
             logger.info("  MASt3R-SLAM completed successfully")
 
-            logs_dir = self.mast3r_path / "logs"
-            traj_src: Optional[Path] = None
-
-            for basename in log_basenames:
-                candidate = logs_dir / f"{basename}.txt"
-                if candidate.exists():
-                    traj_src = candidate
-                    logger.info(f"  Found trajectory: {traj_src.name}")
-                    break
+            traj_src = self._locate_host_logs_trajectory(log_basenames)
             if traj_src is None:
-                expected_files = [f"{basename}.txt" for basename in log_basenames]
-                available_files = sorted(path.name for path in logs_dir.glob("*.txt"))
-                logger.error(
-                    "  No matching MASt3R trajectory file found. "
-                    f"Expected one of: {expected_files}. "
-                    f"Available: {available_files if available_files else '[none]'}"
-                )
                 return False
 
             traj_dst = output_dir / "CameraTrajectory.txt"
@@ -415,11 +760,60 @@ class MASt3RSLAMAlgorithm(SLAMAlgorithm):
             logger.error(f"Failed to run MASt3R-SLAM: {e}")
             return False
 
+    def _locate_host_logs_trajectory(self, log_basenames: List[str]) -> Optional[Path]:
+        """Locate the MASt3R-SLAM-written trajectory under ``logs/`` on the host.
+
+        Conda path only — Podman writes directly into ``output_dir`` via the
+        bind-mount, so this is not called there.
+        """
+        logs_dir = self.mast3r_path / "logs"
+        for basename in log_basenames:
+            candidate = logs_dir / f"{basename}.txt"
+            if candidate.exists():
+                logger.info(f"  Found trajectory: {candidate.name}")
+                return candidate
+
+        expected_files = [f"{basename}.txt" for basename in log_basenames]
+        available_files = sorted(path.name for path in logs_dir.glob("*.txt"))
+        logger.error(
+            "  No matching MASt3R trajectory file found. "
+            f"Expected one of: {expected_files}. "
+            f"Available: {available_files if available_files else '[none]'}"
+        )
+        return None
+
     def _find_raw_trajectory(self, request: SLAMRunRequest, ctx: SLAMRuntimeContext) -> Optional[Path]:
-        """Find raw MASt3R-SLAM trajectory output."""
+        """Find raw MASt3R-SLAM trajectory output.
+
+        Conda path: ``_run_mast3rslam`` already copies the trajectory to
+        ``output_dir/CameraTrajectory.txt``.
+
+        Podman path: the container writes ``<output_dir>/<basename>.txt``
+        via the bind-mount (host ``output_dir`` → container
+        ``/mast3r-slam/logs``). Locate that file by basename.
+        """
         camera_traj = request.output_dir / "CameraTrajectory.txt"
         if camera_traj.exists():
             return camera_traj
+
+        if self.container_runtime is None:
+            return None
+
+        inputs = ctx.execution_inputs or {}
+        log_basenames = inputs.get("log_basenames") or self._expected_log_basenames(
+            request.dataset_type, ctx.sequence_name
+        )
+        for basename in log_basenames:
+            candidate = request.output_dir / f"{basename}.txt"
+            if candidate.exists():
+                return candidate
+
+        # As a last resort, accept any *.txt in the output dir that matches
+        # the freiburg pattern — useful when MASt3R upgrades and renames
+        # the trajectory file.
+        for txt_path in sorted(request.output_dir.glob("*.txt")):
+            if "rgbd_dataset" in txt_path.name or "freiburg" in txt_path.name.lower():
+                return txt_path
         return None
 
     def _convert_raw_trajectory_to_tum(
@@ -428,8 +822,22 @@ class MASt3RSLAMAlgorithm(SLAMAlgorithm):
         request: SLAMRunRequest,
         ctx: SLAMRuntimeContext,
     ) -> Optional[Path]:
-        """MASt3R-SLAM trajectory is already TUM-compatible."""
-        return raw_trajectory
+        """MASt3R-SLAM trajectory is already TUM-compatible.
+
+        Conda path: ``raw_trajectory`` is ``output_dir/CameraTrajectory.txt``.
+        Podman path: ``raw_trajectory`` is ``output_dir/<basename>.txt``;
+        copy it to the canonical ``output_dir/CameraTrajectory.txt``.
+        """
+        canonical = request.output_dir / "CameraTrajectory.txt"
+        if raw_trajectory.resolve() == canonical.resolve():
+            return canonical
+        try:
+            shutil.copy2(raw_trajectory, canonical)
+            logger.info(f"  Trajectory copied to {canonical}")
+        except Exception as exc:
+            logger.error(f"  Failed to copy trajectory to canonical path: {exc}")
+            return None
+        return canonical
 
     def cleanup(self) -> None:
         """Clean up temporary files."""

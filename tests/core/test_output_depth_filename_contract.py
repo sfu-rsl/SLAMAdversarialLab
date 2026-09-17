@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from slamadverseriallab.core.output import ImageWriter, OutputConfig, OutputFormat
+from slamadversariallab.core.output import ImageWriter, OutputConfig, OutputFormat
 
 
 def _create_writer(output_root: Path) -> ImageWriter:

@@ -1,0 +1,45 @@
+experiment:
+  name: deadline_fps10_tum_desk_mast3rslam
+  description: >-
+    Real-time deadline test on MASt3R-SLAM (TUM freiburg1_desk). MASt3R-SLAM
+    is a foundation-model SLAM that runs a few frames per second, so a 10 fps
+    camera deadline forces it to drop late frames. The DeadlineIterator is
+    wired into the container's main.py: it paces the frame index to 10 Hz and
+    drops frames whose deadline passed before MASt3R processes them. Frame
+    indices stay the real dataset positions, so the saved trajectory aligns by
+    timestamp with no remap. Verifies the deadline harness end to end on the
+    second foundation-model SLAM in SAL.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 150
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: fps10_deadline
+      enabled: true
+      realtime:
+        target_fps: 10
+        warmup_frames: 5
+        queue_size: 1
+        drop_policy: drop_oldest
+      phases:
+        - name: stress
+          duration_s: 600
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

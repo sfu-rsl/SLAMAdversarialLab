@@ -73,7 +73,7 @@ run_perturb_pipeline_once() {
 
     echo ""
     echo "=== [RUN] $experiment_name ==="
-    run_with_timeout_and_log "$run_log" python -m slamadverseriallab run "$config_path"
+    run_with_timeout_and_log "$run_log" python -m slamadversariallab run "$config_path"
 
     assert_dir_exists "results/regression/$experiment_name/images/$PERTURBATION_NAME/image_2"
     _RAN_EXPERIMENTS["$experiment_name"]=1
@@ -89,7 +89,7 @@ run_eval_and_assert() {
     echo "=== [EVAL] $experiment_name :: $algo ==="
     run_with_timeout_and_log \
         "$eval_log" \
-        python -m slamadverseriallab evaluate "$config_path" --slam "$algo" --mode slam-only
+        python -m slamadversariallab evaluate "$config_path" --slam "$algo" --mode slam-only
 
     local traj_dir="results/regression/$experiment_name/slam_results/$algo/trajectories/run_0"
     local baseline_traj="$traj_dir/baseline.txt"
@@ -111,13 +111,13 @@ run_eval_and_assert() {
 declare -A _RAN_EXPERIMENTS=()
 
 CASES=(
-    "configs/slamadverseriallab/regression/kitti_5f_night_fog_blur.yaml|regression_kitti_5f_night_fog_blur|gigaslam"
-    "configs/slamadverseriallab/regression/kitti_5f_night_fog_blur.yaml|regression_kitti_5f_night_fog_blur|s3pogs"
-    "configs/slamadverseriallab/regression/euroc_5f_night_fog_blur.yaml|regression_euroc_5f_night_fog_blur|vggtslam"
+    "configs/slamadversariallab/regression/kitti_5f_night_fog_blur.yaml|regression_kitti_5f_night_fog_blur|gigaslam"
+    "configs/slamadversariallab/regression/kitti_5f_night_fog_blur.yaml|regression_kitti_5f_night_fog_blur|s3pogs"
+    "configs/slamadversariallab/regression/euroc_5f_night_fog_blur.yaml|regression_euroc_5f_night_fog_blur|vggtslam"
 )
 
 if [[ "${INCLUDE_TUM_SMOKE:-0}" == "1" ]]; then
-    CASES+=("configs/slamadverseriallab/regression/tum_5f_night_fog_blur.yaml|regression_tum_5f_night_fog_blur|droidslam")
+    CASES+=("configs/slamadversariallab/regression/tum_5f_night_fog_blur.yaml|regression_tum_5f_night_fog_blur|droidslam")
 fi
 
 for case_def in "${CASES[@]}"; do

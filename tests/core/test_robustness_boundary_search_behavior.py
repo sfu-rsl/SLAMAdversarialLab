@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from slamadverseriallab.pipelines.robustness_boundary import (
+from slamadversariallab.pipelines.robustness_boundary import (
     BoundaryTrialResult,
     RobustnessBoundaryPipeline,
 )

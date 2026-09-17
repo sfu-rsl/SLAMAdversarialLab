@@ -6,7 +6,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-CONFIGS_DIR="$REPO_ROOT/configs/slamadverseriallab/experiments"
+CONFIGS_DIR="$REPO_ROOT/configs/slamadversariallab/experiments"
 
 # KITTI experiments and algorithms
 KITTI_CONFIGS=(
@@ -34,7 +34,7 @@ for config in "${KITTI_CONFIGS[@]}"; do
     for algo in "${KITTI_ALGORITHMS[@]}"; do
         echo ""
         echo ">>> Running: $config with $algo"
-        python -m slamadverseriallab evaluate "$CONFIGS_DIR/$config" --slam "$algo" --mode metrics-only --paper-mode || echo "FAILED: $config with $algo"
+        python -m slamadversariallab evaluate "$CONFIGS_DIR/$config" --slam "$algo" --mode metrics-only --paper-mode || echo "FAILED: $config with $algo"
     done
 done
 
@@ -44,7 +44,7 @@ for config in "${TUM_CONFIGS[@]}"; do
     for algo in "${TUM_ALGORITHMS[@]}"; do
         echo ""
         echo ">>> Running: $config with $algo"
-        python -m slamadverseriallab evaluate "$CONFIGS_DIR/$config" --slam "$algo" --mode metrics-only --paper-mode || echo "FAILED: $config with $algo"
+        python -m slamadversariallab evaluate "$CONFIGS_DIR/$config" --slam "$algo" --mode metrics-only --paper-mode || echo "FAILED: $config with $algo"
     done
 done
 

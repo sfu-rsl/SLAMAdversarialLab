@@ -63,7 +63,11 @@ def generate_tum_association_with_associate_py(
 ) -> Optional[Path]:
     """Generate associations using the TUM associate.py script."""
     active_logger = log or logger
-    script_path = Path(__file__).parent.parent.parent / "scripts" / "associate.py"
+    # Ships inside the package, so it resolves under `pip install` as well as
+    # from a source checkout. Resolving it against the repository root found
+    # site-packages/scripts/associate.py once installed, and TUM RGB-D
+    # association silently returned None.
+    script_path = Path(__file__).parent / "associate.py"
     if not script_path.exists():
         active_logger.error(f"  associate.py script not found at {script_path}")
         return None

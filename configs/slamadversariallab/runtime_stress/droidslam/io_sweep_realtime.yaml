@@ -1,0 +1,102 @@
+experiment:
+  name: runtime_stress_tum_desk_droidslam_io_sweep_realtime_podman
+  description: >-
+    Block-IO bandwidth sweep on DROID-SLAM (TUM freiburg1_desk, 80 frames),
+    with the SAL real-time deadline harness enabled (target_fps: 10, matching
+    TUM's effective rate after DROID's stride=2). The first 5 sampled frames
+    bypass the deadline as warmup so DROID's CUDA kernel JIT and lazy
+    allocator setup don't masquerade as late frames. Mirrors the existing
+    droidslam/io_sweep.yaml -- same caps,
+    same scenarios -- so the two sweeps can be compared directly. The
+    existing sweep showed ATE bit-identical at every cap (the SLAM blocks
+    on slow IO instead of failing). With this sweep, frames whose
+    wall-clock deadline has passed are silently skipped; we expect ATE
+    to drift at IO caps where per-frame compute exceeds 100 ms (1/10 s).
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: io_100mb_per_sec_rt10
+      enabled: true
+      realtime:
+        target_fps: 10
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 60
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+    - name: io_50mb_per_sec_rt10
+      enabled: true
+      realtime:
+        target_fps: 10
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 60
+          controls:
+            io:
+              read_bps: 50000000
+              write_bps: 50000000
+
+    - name: io_10mb_per_sec_rt10
+      enabled: true
+      realtime:
+        target_fps: 10
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 60
+          controls:
+            io:
+              read_bps: 10000000
+              write_bps: 10000000
+
+    - name: io_5mb_per_sec_rt10
+      enabled: true
+      realtime:
+        target_fps: 10
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 60
+          controls:
+            io:
+              read_bps: 5000000
+              write_bps: 5000000
+
+    - name: io_1mb_per_sec_rt10
+      enabled: true
+      realtime:
+        target_fps: 10
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 60
+          controls:
+            io:
+              read_bps: 1000000
+              write_bps: 1000000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

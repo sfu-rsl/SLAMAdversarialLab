@@ -1,0 +1,33 @@
+experiment:
+  name: runtime_stress_tum_desk_dpvo_cpu_smoke_podman
+  description: >-
+    CPU runtime-stress smoke for DPVO (TUM freiburg1_desk mono, podman). Caps the container to 1 CPU core (cgroup v2 cpu.max) during the stress phase; validates the controller attaches to the DPVO container. Offline replay absorbs the cap as wall-time stretch.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 300
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: cpu_1core
+      enabled: true
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 600, controls: {cpu: {max_cores: 1.0}}}
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

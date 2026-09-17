@@ -5,9 +5,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from slamadverseriallab.config.schema import DatasetConfig
-from slamadverseriallab.datasets.euroc import EuRoCDataset
-from slamadverseriallab.datasets.kitti import KittiDataset
+from slamadversariallab.config.schema import DatasetConfig
+from slamadversariallab.datasets.euroc import EuRoCDataset
+from slamadversariallab.datasets.kitti import KittiDataset
 
 
 def _write_dummy_png(path: Path) -> None:

@@ -1,0 +1,82 @@
+experiment:
+  name: runtime_stress_tum_desk_droidslam_io_sweep_podman
+  description: >-
+    Block-IO bandwidth sweep on DROID-SLAM (TUM freiburg1_desk, 80 frames).
+    Each scenario runs DROID-SLAM under a cgroup-enforced read+write cap on
+    /dev/sda. Caps: 100 MB/s (loose), 50, 10, 5, 1 MB/s (tight). The cgroup
+    only sees disk IO that misses the page cache; SLAM workloads with
+    cached datasets may show flat behavior, which is itself a valid
+    finding.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: io_100mb_per_sec
+      enabled: true
+      phases:
+        - name: stress
+          duration_s: 60
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+    - name: io_50mb_per_sec
+      enabled: true
+      phases:
+        - name: stress
+          duration_s: 60
+          controls:
+            io:
+              read_bps: 50000000
+              write_bps: 50000000
+
+    - name: io_10mb_per_sec
+      enabled: true
+      phases:
+        - name: stress
+          duration_s: 60
+          controls:
+            io:
+              read_bps: 10000000
+              write_bps: 10000000
+
+    - name: io_5mb_per_sec
+      enabled: true
+      phases:
+        - name: stress
+          duration_s: 60
+          controls:
+            io:
+              read_bps: 5000000
+              write_bps: 5000000
+
+    - name: io_1mb_per_sec
+      enabled: true
+      phases:
+        - name: stress
+          duration_s: 60
+          controls:
+            io:
+              read_bps: 1000000
+              write_bps: 1000000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

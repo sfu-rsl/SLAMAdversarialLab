@@ -1,0 +1,68 @@
+experiment:
+  name: runtime_stress_tum_desk_orbslam3_io_throttle_podman
+  description: >-
+    Podman runtime-stress on TUM freiburg1_desk (80 frames) with ORB-SLAM3,
+    exercising the new block-IO controller. Three scenarios: read-bps cap,
+    write-bps cap, and combined read+write+iops. The cap applies to the
+    union of host devices backing the bind mounts (/dataset and /output).
+    On a single-disk system that's typically /dev/sda; the throttle is per
+    container-cgroup so it does not affect other workloads on the same host.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: io_read_50mb_per_sec
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 30
+          controls:
+            io:
+              read_bps: 50000000   # 50 MB/s
+
+    - name: io_write_10mb_per_sec
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 30
+          controls:
+            io:
+              write_bps: 10000000  # 10 MB/s
+
+    - name: io_combined_bps_and_iops
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 30
+          controls:
+            io:
+              read_bps: 100000000  # 100 MB/s
+              write_bps: 20000000  # 20 MB/s
+              read_iops: 2000      # may no-op on NVMe with mq-deadline
+              write_iops: 1000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

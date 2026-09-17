@@ -1,9 +1,9 @@
-"""YAML configuration parser for SLAMAdverserialLab."""
+"""YAML configuration parser for SLAMAdversarialLab."""
 
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 import yaml
 
 from ..utils import get_logger
@@ -12,7 +12,23 @@ from .schema import (
     DatasetConfig,
     PerturbationConfig,
     OutputConfig,
+    RealtimeDeadlineConfig,
     RobustnessBoundaryConfig,
+    RuntimeStressConfig,
+    RuntimeStressTelemetryConfig,
+    RuntimeStressScenarioConfig,
+    RuntimeStressPhaseConfig,
+    RuntimeStressControlsConfig,
+    CpuControlConfig,
+    GpuControlConfig,
+    IoControlConfig,
+    LoadControlConfig,
+    LoadFenceConfig,
+    LoadGpuAntagonistConfig,
+    LoadInContainerConfig,
+    LoadSegmentationConfig,
+    MemoryControlConfig,
+    StressorPresetConfig,
 )
 
 logger = get_logger(__name__)
@@ -290,6 +306,276 @@ def parse_robustness_boundary(config_dict: Dict[str, Any]) -> Optional[Robustnes
     return rb
 
 
+def _parse_axis_blocks(
+    controls_data: Dict[str, Any], context: str
+) -> Tuple[
+    Optional[CpuControlConfig],
+    Optional[MemoryControlConfig],
+    Optional[GpuControlConfig],
+    Optional[IoControlConfig],
+    Optional[LoadControlConfig],
+]:
+    """Parse the axis blocks (cpu/memory/gpu/io/load) shared by phase controls
+    and stressor presets.
+
+    ``context`` is a YAML-path prefix used in error messages
+    (e.g. ``runtime_stress.scenarios[0].phases[1].controls`` or
+    ``runtime_stress.stressors['edge_device']``).
+    """
+    cpu_data = controls_data.get("cpu")
+    if cpu_data is not None and not isinstance(cpu_data, dict):
+        raise ValueError(f"{context}.cpu must be a dictionary/object")
+    cpu_cfg = (
+        CpuControlConfig(max_cores=cpu_data.get("max_cores"))
+        if cpu_data is not None
+        else None
+    )
+
+    memory_data = controls_data.get("memory")
+    if memory_data is not None and not isinstance(memory_data, dict):
+        raise ValueError(f"{context}.memory must be a dictionary/object")
+    memory_cfg = (
+        MemoryControlConfig(max_mb=memory_data.get("max_mb"))
+        if memory_data is not None
+        else None
+    )
+
+    gpu_data = controls_data.get("gpu")
+    if gpu_data is not None and not isinstance(gpu_data, dict):
+        raise ValueError(f"{context}.gpu must be a dictionary/object")
+    gpu_cfg = (
+        GpuControlConfig(
+            vram_limit_mb=gpu_data.get("vram_limit_mb"),
+            sm_limit_percent=gpu_data.get("sm_limit_percent"),
+        )
+        if gpu_data is not None
+        else None
+    )
+
+    io_data = controls_data.get("io")
+    if io_data is not None and not isinstance(io_data, dict):
+        raise ValueError(f"{context}.io must be a dictionary/object")
+    io_cfg = (
+        IoControlConfig(
+            read_bps=io_data.get("read_bps"),
+            write_bps=io_data.get("write_bps"),
+            read_iops=io_data.get("read_iops"),
+            write_iops=io_data.get("write_iops"),
+        )
+        if io_data is not None
+        else None
+    )
+
+    load_data = controls_data.get("load")
+    if load_data is not None and not isinstance(load_data, dict):
+        raise ValueError(f"{context}.load must be a dictionary/object")
+    load_cfg: Optional[LoadControlConfig] = None
+    if load_data is not None:
+        load_gpu_data = load_data.get("gpu")
+        if load_gpu_data is not None and not isinstance(load_gpu_data, dict):
+            raise ValueError(f"{context}.load.gpu must be a dictionary/object")
+        load_fence_data = load_data.get("fence")
+        if load_fence_data is not None and not isinstance(load_fence_data, dict):
+            raise ValueError(f"{context}.load.fence must be a dictionary/object")
+        load_incontainer_data = load_data.get("in_container")
+        if load_incontainer_data is not None and not isinstance(load_incontainer_data, dict):
+            raise ValueError(f"{context}.load.in_container must be a dictionary/object")
+        load_seg_data = load_data.get("segmentation")
+        if load_seg_data is not None and not isinstance(load_seg_data, dict):
+            raise ValueError(f"{context}.load.segmentation must be a dictionary/object")
+        load_cfg = LoadControlConfig(
+            cpu_workers=load_data.get("cpu_workers"),
+            stream_workers=load_data.get("stream_workers"),
+            vm_workers=load_data.get("vm_workers"),
+            vm_bytes_mb=load_data.get("vm_bytes_mb"),
+            in_container=(
+                LoadInContainerConfig(
+                    cpu_workers=load_incontainer_data.get("cpu_workers"),
+                    stream_workers=load_incontainer_data.get("stream_workers"),
+                    vm_workers=load_incontainer_data.get("vm_workers"),
+                    vm_bytes_mb=load_incontainer_data.get("vm_bytes_mb"),
+                )
+                if load_incontainer_data is not None
+                else None
+            ),
+            segmentation=(
+                LoadSegmentationConfig(
+                    frames_dir=load_seg_data.get("frames_dir"),
+                    source=load_seg_data.get("source"),
+                    prompt=load_seg_data.get("prompt", "person"),
+                    max_frames=load_seg_data.get("max_frames"),
+                    conda_env=load_seg_data.get("conda_env", "sam3"),
+                )
+                if load_seg_data is not None
+                else None
+            ),
+            gpu=(
+                LoadGpuAntagonistConfig(
+                    vram_mb=load_gpu_data.get("vram_mb"),
+                    matmul_n=load_gpu_data.get("matmul_n"),
+                    duty_cycle=load_gpu_data.get("duty_cycle"),
+                    image=load_gpu_data.get("image"),
+                )
+                if load_gpu_data is not None
+                else None
+            ),
+            fence=(
+                LoadFenceConfig(
+                    cpus=load_fence_data.get("cpus"),
+                    memory_mb=load_fence_data.get("memory_mb"),
+                    cpu_shares=load_fence_data.get("cpu_shares"),
+                )
+                if load_fence_data is not None
+                else None
+            ),
+        )
+
+    return cpu_cfg, memory_cfg, gpu_cfg, io_cfg, load_cfg
+
+
+def parse_runtime_stress(config_dict: Dict[str, Any]) -> Optional[RuntimeStressConfig]:
+    """Parse runtime-stress configuration section."""
+    if "runtime_stress" not in config_dict:
+        return None
+
+    rt_data = config_dict["runtime_stress"]
+    if rt_data is None:
+        return None
+
+    if not isinstance(rt_data, dict):
+        raise ValueError("runtime_stress must be a dictionary/object")
+
+    container_runtime = rt_data.get("container_runtime", "docker")
+    if not isinstance(container_runtime, str):
+        raise ValueError("runtime_stress.container_runtime must be a string")
+
+    telemetry_data = rt_data.get("telemetry", {}) or {}
+    if not isinstance(telemetry_data, dict):
+        raise ValueError("runtime_stress.telemetry must be a dictionary/object")
+
+    telemetry = RuntimeStressTelemetryConfig(
+        sample_period_ms=telemetry_data.get("sample_period_ms", 500),
+    )
+
+    raw_stressors = rt_data.get("stressors", {}) or {}
+    if not isinstance(raw_stressors, dict):
+        raise ValueError("runtime_stress.stressors must be a mapping of name -> preset")
+
+    stressors: Dict[str, StressorPresetConfig] = {}
+    for preset_name, preset_data in raw_stressors.items():
+        if not isinstance(preset_name, str):
+            raise ValueError("runtime_stress.stressors keys must be strings")
+        if not isinstance(preset_data, dict):
+            raise ValueError(
+                f"runtime_stress.stressors['{preset_name}'] must be a dictionary/object"
+            )
+        cpu_cfg, memory_cfg, gpu_cfg, io_cfg, load_cfg = _parse_axis_blocks(
+            preset_data, f"runtime_stress.stressors['{preset_name}']"
+        )
+        if load_cfg is not None:
+            raise ValueError(
+                f"runtime_stress.stressors['{preset_name}'].load: load antagonists "
+                "are phase-controls-only in v1 (no preset merge semantics defined)"
+            )
+        stressors[preset_name] = StressorPresetConfig(
+            cpu=cpu_cfg, memory=memory_cfg, gpu=gpu_cfg, io=io_cfg
+        )
+
+    scenarios: List[RuntimeStressScenarioConfig] = []
+    raw_scenarios = rt_data.get("scenarios", [])
+    if raw_scenarios is None:
+        raw_scenarios = []
+    if not isinstance(raw_scenarios, list):
+        raise ValueError("runtime_stress.scenarios must be a list")
+
+    for scenario_idx, scenario_data in enumerate(raw_scenarios):
+        if not isinstance(scenario_data, dict):
+            raise ValueError(
+                f"runtime_stress.scenarios[{scenario_idx}] must be a dictionary/object"
+            )
+
+        raw_phases = scenario_data.get("phases", [])
+        if not isinstance(raw_phases, list):
+            raise ValueError(
+                f"runtime_stress.scenarios[{scenario_idx}].phases must be a list"
+            )
+
+        phases: List[RuntimeStressPhaseConfig] = []
+        for phase_idx, phase_data in enumerate(raw_phases):
+            if not isinstance(phase_data, dict):
+                raise ValueError(
+                    f"runtime_stress.scenarios[{scenario_idx}].phases[{phase_idx}] "
+                    "must be a dictionary/object"
+                )
+
+            controls_data = phase_data.get("controls", {}) or {}
+            if not isinstance(controls_data, dict):
+                raise ValueError(
+                    f"runtime_stress.scenarios[{scenario_idx}].phases[{phase_idx}].controls "
+                    "must be a dictionary/object"
+                )
+
+            cpu_cfg, memory_cfg, gpu_cfg, io_cfg, load_cfg = _parse_axis_blocks(
+                controls_data,
+                f"runtime_stress.scenarios[{scenario_idx}].phases[{phase_idx}].controls",
+            )
+
+            stressor_refs = phase_data.get("stressors", []) or []
+            if not isinstance(stressor_refs, list):
+                raise ValueError(
+                    f"runtime_stress.scenarios[{scenario_idx}].phases[{phase_idx}].stressors "
+                    "must be a list of names"
+                )
+
+            phases.append(
+                RuntimeStressPhaseConfig(
+                    name=phase_data.get("name", ""),
+                    duration_s=phase_data.get("duration_s"),
+                    until_frame=phase_data.get("until_frame"),
+                    controls=RuntimeStressControlsConfig(
+                        cpu=cpu_cfg, memory=memory_cfg, gpu=gpu_cfg, io=io_cfg,
+                        load=load_cfg,
+                    ),
+                    stressors=list(stressor_refs),
+                )
+            )
+
+        realtime_data = scenario_data.get("realtime")
+        realtime_cfg: Optional[RealtimeDeadlineConfig] = None
+        if realtime_data is not None:
+            if not isinstance(realtime_data, dict):
+                raise ValueError(
+                    f"runtime_stress.scenarios[{scenario_idx}].realtime "
+                    "must be a dictionary/object"
+                )
+            realtime_cfg = RealtimeDeadlineConfig(
+                target_fps=realtime_data.get("target_fps"),
+                warmup_frames=realtime_data.get("warmup_frames", 0),
+                queue_size=realtime_data.get("queue_size", 1),
+                drop_policy=realtime_data.get("drop_policy", "drop_oldest"),
+            )
+
+        scenarios.append(
+            RuntimeStressScenarioConfig(
+                name=scenario_data.get("name", ""),
+                enabled=scenario_data.get("enabled", True),
+                phases=phases,
+                realtime=realtime_cfg,
+            )
+        )
+
+    runtime_stress = RuntimeStressConfig(
+        enabled=rt_data.get("enabled", False),
+        container_runtime=container_runtime,
+        evict_page_cache=rt_data.get("evict_page_cache", False),
+        telemetry=telemetry,
+        stressors=stressors,
+        scenarios=scenarios,
+    )
+    runtime_stress.validate()
+    return runtime_stress
+
+
 def parse_output(config_dict: Dict[str, Any]) -> OutputConfig:
     """
     Parse output configuration section.
@@ -319,6 +605,64 @@ def parse_output(config_dict: Dict[str, Any]) -> OutputConfig:
     return output
 
 
+def _resolve_segmentation_source(dataset, runtime_stress) -> None:
+    """Expand `segmentation.source: dataset` into a concrete frames_dir.
+
+    Done HERE because this is the first point where the dataset block and the
+    runtime-stress block both exist. Resolving at parse time means an
+    unresolvable reference fails while the config is being read, rather than
+    half-way into a campaign when the antagonist tries to open a directory that
+    was never there.
+
+    THE REFERENCE IS TO DATA, NOT TO RUNTIME. Exactly four things are copied --
+    path, max_frames, and (through the path) the sequence and stereo layout. The
+    segmenter does NOT inherit the deadline, the frame pacing, the warmup or the
+    phases. "Same dataset" means the same images and the same frame budget, which
+    is the realistic part (one camera feeding two consumers), without inventing a
+    synchronisation the experiment does not have.
+    """
+    if runtime_stress is None or dataset is None:
+        return
+    for scenario in (runtime_stress.scenarios or []):
+        for phase in (scenario.phases or []):
+            controls = getattr(phase, "controls", None)
+            seg = getattr(getattr(controls, "load", None), "segmentation", None)
+            if seg is None or seg.source != "dataset":
+                continue
+            resolved = dataset.path
+            if not resolved and dataset.sequence:
+                # Sequence-based configs (KITTI uses `sequence: 07` with no
+                # path) are resolved by the dataset adapter, not by the config.
+                # Reuse THAT resolution rather than reimplementing the layout
+                # convention here, so the co-tenant reads the same directory the
+                # SLAM will and the two cannot drift apart.
+                try:
+                    from src.datasets.factory import _registry  # noqa: PLC0415
+                    adapter = _registry.get(dataset.type)
+                    if adapter is not None:
+                        resolved = adapter.resolve_path(dataset)
+                except Exception as exc:
+                    raise ValueError(
+                        f"runtime_stress.controls.load.segmentation uses "
+                        f"source: dataset, but sequence "
+                        f"{dataset.sequence!r} could not be resolved to a path "
+                        f"({exc}). Set an explicit frames_dir instead."
+                    ) from exc
+            if not resolved:
+                raise ValueError(
+                    "runtime_stress.controls.load.segmentation uses "
+                    "source: dataset, but the dataset block has no resolved "
+                    "path. Give the dataset an explicit path, or set an "
+                    "explicit frames_dir on the segmentation block."
+                )
+            seg.frames_dir = resolved
+            # Inherit the SLAM's frame budget unless the block overrode it, so
+            # `source: dataset` genuinely means the same span of the sequence.
+            if seg.max_frames is None:
+                seg.max_frames = dataset.max_frames
+            seg.source = None  # resolved; downstream sees only a concrete dir
+
+
 class Config:
     """Complete configuration container."""
 
@@ -329,6 +673,7 @@ class Config:
         perturbations: List[PerturbationConfig],
         output: OutputConfig,
         robustness_boundary: Optional[RobustnessBoundaryConfig] = None,
+        runtime_stress: Optional[RuntimeStressConfig] = None,
     ):
         """
         Initialize configuration.
@@ -339,12 +684,15 @@ class Config:
             perturbations: List of perturbation configurations
             output: Output configuration
             robustness_boundary: Optional robustness-boundary configuration
+            runtime_stress: Optional runtime-stress configuration
         """
         self.experiment = experiment
         self.dataset = dataset
         self.perturbations = perturbations
         self.output = output
         self.robustness_boundary = robustness_boundary
+        self.runtime_stress = runtime_stress
+        _resolve_segmentation_source(self.dataset, self.runtime_stress)
 
     def __repr__(self) -> str:
         """String representation of configuration."""
@@ -405,6 +753,99 @@ class Config:
                 "fail_on_tracking_failure": self.robustness_boundary.fail_on_tracking_failure,
             }
 
+        if self.runtime_stress is not None:
+            config_dict["runtime_stress"] = {
+                "enabled": self.runtime_stress.enabled,
+                "container_runtime": self.runtime_stress.container_runtime,
+                "telemetry": {
+                    "sample_period_ms": self.runtime_stress.telemetry.sample_period_ms,
+                },
+                "scenarios": [
+                    {
+                        "name": scenario.name,
+                        "enabled": scenario.enabled,
+                        "phases": [
+                            {
+                                "name": phase.name,
+                                "duration_s": phase.duration_s,
+                                "until_frame": phase.until_frame,
+                                "controls": {
+                                    "cpu": (
+                                        {"max_cores": phase.controls.cpu.max_cores}
+                                        if phase.controls.cpu is not None
+                                        else None
+                                    ),
+                                    "memory": (
+                                        {"max_mb": phase.controls.memory.max_mb}
+                                        if phase.controls.memory is not None
+                                        else None
+                                    ),
+                                    "gpu": (
+                                        {
+                                            "vram_limit_mb": phase.controls.gpu.vram_limit_mb,
+                                            "sm_limit_percent": phase.controls.gpu.sm_limit_percent,
+                                        }
+                                        if phase.controls.gpu is not None
+                                        else None
+                                    ),
+                                    "io": (
+                                        {
+                                            "read_bps": phase.controls.io.read_bps,
+                                            "write_bps": phase.controls.io.write_bps,
+                                            "read_iops": phase.controls.io.read_iops,
+                                            "write_iops": phase.controls.io.write_iops,
+                                        }
+                                        if phase.controls.io is not None
+                                        else None
+                                    ),
+                                    "load": (
+                                        {
+                                            "cpu_workers": phase.controls.load.cpu_workers,
+                                            "stream_workers": phase.controls.load.stream_workers,
+                                            "vm_workers": phase.controls.load.vm_workers,
+                                            "vm_bytes_mb": phase.controls.load.vm_bytes_mb,
+                                            "gpu": (
+                                                {
+                                                    "vram_mb": phase.controls.load.gpu.vram_mb,
+                                                    "matmul_n": phase.controls.load.gpu.matmul_n,
+                                                    "duty_cycle": phase.controls.load.gpu.duty_cycle,
+                                                    "image": phase.controls.load.gpu.image,
+                                                }
+                                                if phase.controls.load.gpu is not None
+                                                else None
+                                            ),
+                                            "fence": (
+                                                {
+                                                    "cpus": phase.controls.load.fence.cpus,
+                                                    "memory_mb": phase.controls.load.fence.memory_mb,
+                                                    "cpu_shares": phase.controls.load.fence.cpu_shares,
+                                                }
+                                                if phase.controls.load.fence is not None
+                                                else None
+                                            ),
+                                            "in_container": (
+                                                {
+                                                    "cpu_workers": phase.controls.load.in_container.cpu_workers,
+                                                    "stream_workers": phase.controls.load.in_container.stream_workers,
+                                                    "vm_workers": phase.controls.load.in_container.vm_workers,
+                                                    "vm_bytes_mb": phase.controls.load.in_container.vm_bytes_mb,
+                                                }
+                                                if phase.controls.load.in_container is not None
+                                                else None
+                                            ),
+                                        }
+                                        if phase.controls.load is not None
+                                        else None
+                                    ),
+                                },
+                            }
+                            for phase in scenario.phases
+                        ],
+                    }
+                    for scenario in self.runtime_stress.scenarios
+                ],
+            }
+
         return config_dict
 
 
@@ -446,6 +887,7 @@ def load_config(path: Union[str, Path]) -> Config:
         perturbations = parse_perturbations(config_dict)
         output = parse_output(config_dict)
         robustness_boundary = parse_robustness_boundary(config_dict)
+        runtime_stress = parse_runtime_stress(config_dict)
     except Exception as e:
         logger.error(f"Configuration parsing failed: {e}")
         raise
@@ -456,6 +898,7 @@ def load_config(path: Union[str, Path]) -> Config:
         perturbations=perturbations,
         output=output,
         robustness_boundary=robustness_boundary,
+        runtime_stress=runtime_stress,
     )
 
     # Parse optional sections
@@ -464,17 +907,6 @@ def load_config(path: Union[str, Path]) -> Config:
 
     if 'slam' in config_dict:
         config.slam = parse_slam(config_dict)
-
-    # TODO: Add validation when validation.py is created
-    # from .validation import validate_config
-    # validation_result = validate_config(config)
-    # if not validation_result.valid:
-    #     logger.error("Configuration validation failed")
-    #     validation_result.print_summary()
-    #     raise ValueError(f"Configuration has {len(validation_result.errors)} validation error(s)")
-    # if validation_result.warnings:
-    #     logger.warning(f"Configuration has {len(validation_result.warnings)} warning(s)")
-    #     validation_result.print_summary()
 
     logger.info(f"Configuration loaded successfully: {config}")
     return config

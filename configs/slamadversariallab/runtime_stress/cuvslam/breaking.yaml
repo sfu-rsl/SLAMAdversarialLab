@@ -1,0 +1,185 @@
+experiment:
+  name: cuvslam_breaking
+  description: 'cuVSLAM breaking-point probe. The standard cap ladders never bound it: measured footprint
+    is ~0.3 cores, 436 MB VRAM, 250 MB RSS and at most 8% GPU SM, against caps of
+    0.5 cores and 4 GB. Three ladders aimed BELOW that: CPU 0.25 to 0.10 cores, VRAM
+    400 to 300 MB, and frame rate 30 to 120 fps, since the 20 fps deadline paced it
+    throughout and its throughput ceiling was never observed.'
+  seed: 42
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: V1_01_easy
+  max_frames: 500
+  load_stereo: true
+  skip_depth: true
+perturbations:
+- name: baseline
+  type: none
+  enabled: true
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+  - name: cpu_0p25
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        cpu:
+          max_cores: 0.25
+  - name: cpu_0p2
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        cpu:
+          max_cores: 0.2
+  - name: cpu_0p15
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        cpu:
+          max_cores: 0.15
+  - name: cpu_0p1
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        cpu:
+          max_cores: 0.1
+  - name: vram_400mb
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        gpu:
+          vram_limit_mb: 400
+  - name: vram_380mb
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        gpu:
+          vram_limit_mb: 380
+  - name: vram_350mb
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        gpu:
+          vram_limit_mb: 350
+  - name: vram_300mb
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        gpu:
+          vram_limit_mb: 300
+  - name: fps_30
+    enabled: true
+    realtime:
+      target_fps: 30
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+  - name: fps_60
+    enabled: true
+    realtime:
+      target_fps: 60
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+  - name: fps_120
+    enabled: true
+    realtime:
+      target_fps: 120
+      warmup_frames: 0
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

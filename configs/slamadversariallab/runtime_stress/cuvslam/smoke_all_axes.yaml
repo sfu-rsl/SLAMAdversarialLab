@@ -1,0 +1,73 @@
+experiment:
+  name: cuvslam_smoke_all_axes
+  description: 'cuVSLAM integration smoke: one baseline plus every stressor axis
+    (CPU, memory, IO, VRAM) at loose caps. Loose is deliberate here -- the point
+    is that each controller ATTACHES and reports controller_error null, not that
+    the SLAM breaks. Breaking points are found separately once the working set
+    is known. 600 frames because V1_01_easy is stationary for roughly its first
+    150, so a shorter run scores an all-identity trajectory that looks like a
+    tracking failure and is not one.'
+  seed: 42
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: V1_01_easy
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+perturbations:
+- name: baseline
+  type: none
+  enabled: true
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+  - name: smoke_cpu
+    enabled: true
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        cpu:
+          max_cores: 4.0
+  - name: smoke_memory
+    enabled: true
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        memory:
+          max_mb: 8192
+  - name: smoke_io
+    enabled: true
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        io:
+          read_bps: 100000000
+          write_bps: 100000000
+  - name: smoke_vram
+    enabled: true
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        gpu:
+          vram_limit_mb: 8192
+          sm_limit_percent: 100
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

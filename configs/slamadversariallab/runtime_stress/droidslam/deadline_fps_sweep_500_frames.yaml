@@ -1,0 +1,111 @@
+experiment:
+  name: deadline_fps_sweep_500_frames_droidslam
+  description: >-
+    Deadline sweep on DROID-SLAM (TUM freiburg1_desk, 500 raw frames /
+    stride=2 → 250 sampled). Six target_fps values bracket DROID's
+    compute knee: 10 (keeps up), 15 (filler), 20 (just past knee),
+    30 / 50 / 100 (severe). IO held loose at 100 MB/s read+write so the
+    only stressor is the per-frame deadline. Wall clock starts after
+    5 warmup frames so DROID's model-load / CUDA-JIT doesn't count as
+    late.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 500
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: fps_10_loose_io
+      enabled: true
+      realtime:
+        target_fps: 10
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 300
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+    - name: fps_15_loose_io
+      enabled: true
+      realtime:
+        target_fps: 15
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 300
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+    - name: fps_20_loose_io
+      enabled: true
+      realtime:
+        target_fps: 20
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 300
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+    - name: fps_30_loose_io
+      enabled: true
+      realtime:
+        target_fps: 30
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 300
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+    - name: fps_50_loose_io
+      enabled: true
+      realtime:
+        target_fps: 50
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 300
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+    - name: fps_100_loose_io
+      enabled: true
+      realtime:
+        target_fps: 100
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 300
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

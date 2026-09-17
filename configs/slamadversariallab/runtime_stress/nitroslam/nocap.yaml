@@ -1,0 +1,43 @@
+experiment:
+  name: runtime_stress_euroc_nitroslam_nocap_podman
+  description: >-
+    Wrapper-through-pipeline validation for Nitro-SLAM on EuRoC V1_01_easy via
+    the runtime-stress pipeline with NO GPU cap (HAMi is not exercised). This
+    validates the integration path end-to-end: reconcile to podman, EuRoC IMU
+    staging (mav0/imu0/data.csv), the stereo_inertial_euroc command with the
+    file_name + 7 module args, f_/kf_ -> Camera/KeyFrameTrajectory collection,
+    and telemetry sampling. Swap in a gpu.vram_limit_mb scenario (see the
+    _hami_smoke config) once HAMi's libvgpu.so is installed at /opt/hami.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: observe_no_cap
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: observe
+          duration_s: 300
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

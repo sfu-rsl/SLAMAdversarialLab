@@ -1,0 +1,64 @@
+experiment:
+  name: deadline_fps_kitti_04_orbslam3
+  description: >-
+    Real-time deadline experiment for ORB-SLAM3 monocular on KITTI sequence 04
+    (~271 frames captured at 10 Hz). The deadline harness paces frames at
+    target_fps and drops any whose wall-clock deadline passed because tracking
+    was too slow, inside mono_kitti's real frame loop (the faithful C++ analog
+    of DROID-SLAM's demo.py wiring; the same sal::DeadlineIterator logic as the
+    Python deadline_iterator.py). Two scenarios make the mechanism visible:
+    fps15_loose, where fast ORB tracking comfortably meets the 66.7 ms deadline
+    (near-zero drops, a reference run), and fps25_tight, a 40 ms deadline that
+    ORB cannot always meet, so drop_oldest discards late frames evenly across
+    the sequence. Comparing drop_rate and APE across the two shows drops track
+    the real consumer speed, not a precomputed schedule. drop_oldest keeps the
+    freshest arrival, so even at a tight deadline the surviving frames stay
+    roughly uniformly spaced and ORB keeps tracking (a harsh CPU cap, by
+    contrast, makes tracking time bursty and starves monocular init of the
+    closely spaced frames it needs). Only the monocular KITTI binary is plumbed
+    for the deadline, so run with ORB-SLAM3 selected (e.g. --slam orbslam3).
+    target_fps values are a calibrated starting point for this host; re-tune if
+    ORB's throughput differs.
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: fps15_loose
+      enabled: true
+      realtime:
+        target_fps: 15
+        warmup_frames: 5
+        # queue_size (1) and drop_policy (drop_oldest) use defaults.
+      phases:
+        - name: stress
+          duration_s: 600
+          # No controls: the wall-clock deadline is the only stressor.
+    - name: fps25_tight
+      enabled: true
+      realtime:
+        target_fps: 25
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 600
+          # Tighter 40 ms deadline; ORB cannot always keep up so some late
+          # frames are dropped (drop_oldest, evenly spaced). Kept moderate so
+          # monocular tracking survives the larger inter-frame motion.
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

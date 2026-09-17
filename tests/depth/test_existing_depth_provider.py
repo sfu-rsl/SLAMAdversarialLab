@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from slamadverseriallab.depth.providers import ExistingDepthProvider, DepthProviderNotApplicable
+from slamadversariallab.depth.providers import ExistingDepthProvider, DepthProviderNotApplicable
 
 
 class _DatasetStub:

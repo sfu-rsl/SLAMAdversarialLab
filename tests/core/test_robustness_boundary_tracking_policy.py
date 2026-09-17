@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-from slamadverseriallab.pipelines.robustness_boundary import RobustnessBoundaryPipeline
+from slamadversariallab.pipelines.robustness_boundary import RobustnessBoundaryPipeline
 
 
 def _write_config(path: Path, *, base_dir: Path, fail_on_tracking_failure: bool) -> None:

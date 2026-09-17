@@ -1,0 +1,43 @@
+experiment:
+  name: runtime_stress_euroc_nitroslam_memory_breaking_podman
+  description: >-
+    Memory BREAKING-POINT test for Nitro-SLAM (EuRoC V1_01_easy stereo-inertial).
+    Caps container RAM to 2 GB (cgroup v2 memory.max), below Nitro's measured
+    ~3.2 GB host-RAM working set, to demonstrate hard cap enforcement (cgroup
+    OOM-kill). Companion to the _memory_smoke config (8 GB, completes cleanly).
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: mem_2gb_breaking
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            memory:
+              max_mb: 2048
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

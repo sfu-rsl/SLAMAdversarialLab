@@ -1,0 +1,36 @@
+experiment:
+  name: p1smoke_vggtslam
+  description: 'P1 preflight smoke: clean deadline run, no cap, vggtslam.'
+  seed: 42
+dataset:
+  type: tum
+  sequence: freiburg1_desk
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 500
+perturbations:
+- name: baseline
+  type: none
+  enabled: true
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+  - name: smoke_clean_deadline
+    enabled: true
+    realtime:
+      target_fps: 30
+      warmup_frames: 30
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: clean
+      duration_s: 3600
+      controls: {}
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

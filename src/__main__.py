@@ -1,4 +1,4 @@
-"""Main entry point for running SLAMAdverserialLab as a module."""
+"""Main entry point for running SLAMAdversarialLab as a module."""
 
 import sys
 from .cli import main

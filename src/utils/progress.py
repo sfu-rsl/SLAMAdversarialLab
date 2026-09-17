@@ -1,4 +1,4 @@
-"""Progress tracking utilities for SLAMAdverserialLab."""
+"""Progress tracking utilities for SLAMAdversarialLab."""
 
 import sys
 import time

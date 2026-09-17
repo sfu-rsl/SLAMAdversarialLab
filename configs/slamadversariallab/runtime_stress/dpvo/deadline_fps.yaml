@@ -1,0 +1,54 @@
+experiment:
+  name: deadline_fps_tum_desk_dpvo
+  description: >-
+    Real-time deadline experiment for DPVO on TUM freiburg1_desk (mono, 300
+    frames, stride 2 -> 150 processed). The deadline harness paces frames at
+    target_fps inside the patched dpvo/stream.py producer and drops any whose
+    wall-clock deadline passed because tracking was too slow; backpressure
+    through DPVO's bounded frame queue couples the drop decision to the real
+    consumer speed. DPVO is a lightweight patch-based VO (~25-30 fps here), so
+    fps30_loose paces near its throughput (few drops) while fps60_tight
+    demands double and forces drops. Comparing drop_rate and APE across the
+    two shows drops track real consumer speed. Runs with dpvo or dpvslam
+    (both stream through the same patched producer).
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 300
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: fps30_loose
+      enabled: true
+      realtime:
+        target_fps: 30
+        warmup_frames: 5
+        # queue_size (1) and drop_policy (drop_oldest) use defaults.
+      phases:
+        - name: stress
+          duration_s: 300
+    - name: fps60_tight
+      enabled: true
+      realtime:
+        target_fps: 60
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 300
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

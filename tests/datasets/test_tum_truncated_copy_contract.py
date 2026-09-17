@@ -5,8 +5,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from slamadverseriallab.config.schema import DatasetConfig
-from slamadverseriallab.datasets.tum import TUMDataset
+from slamadversariallab.config.schema import DatasetConfig
+from slamadversariallab.datasets.tum import TUMDataset
 
 
 def _write_dummy_png(path: Path) -> None:

@@ -146,6 +146,20 @@ except ImportError:
     pass
 
 try:
+    from .nitroslam import NitroSLAMAlgorithm
+    register_slam_algorithm('nitroslam', NitroSLAMAlgorithm)
+except ImportError:
+    # Nitro-SLAM (GPU-accelerated ORB-SLAM3 fork) dependencies may not be available
+    pass
+
+try:
+    from .orbslam3i import ORBSLAM3InertialAlgorithm
+    register_slam_algorithm('orbslam3i', ORBSLAM3InertialAlgorithm)
+except ImportError:
+    # ORB-SLAM3 stereo-inertial variant dependencies may not be available
+    pass
+
+try:
     from .s3pogs import S3POGSAlgorithm
     register_slam_algorithm('s3pogs', S3POGSAlgorithm)
 except ImportError:
@@ -185,4 +199,27 @@ try:
     register_slam_algorithm('photoslam', PhotoSLAMAlgorithm)
 except ImportError:
     # Photo-SLAM dependencies may not be available
+    pass
+
+try:
+    from .okvis2x import OKVIS2XAlgorithm, OKVIS2XNNAlgorithm
+    register_slam_algorithm('okvis2x', OKVIS2XAlgorithm)
+    register_slam_algorithm('okvis2xnn', OKVIS2XNNAlgorithm)
+except ImportError:
+    # OKVIS2-X dependencies may not be available
+    pass
+
+try:
+    from .dpvo import DPVOAlgorithm, DPVSLAMAlgorithm
+    register_slam_algorithm('dpvo', DPVOAlgorithm)
+    register_slam_algorithm('dpvslam', DPVSLAMAlgorithm)
+except ImportError:
+    # DPVO dependencies may not be available
+    pass
+
+try:
+    from .cuvslam import CuVSLAMAlgorithm
+    register_slam_algorithm('cuvslam', CuVSLAMAlgorithm)
+except ImportError:
+    # cuVSLAM dependencies may not be available
     pass

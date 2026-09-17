@@ -1,0 +1,77 @@
+experiment:
+  name: runtime_stress_euroc_vggtslam_hami_sweep_podman
+  description: >-
+    VRAM cap sweep on VGGT-SLAM (EuRoC V1_01_easy, 300 frames) to find
+    the threshold between clean-run and OOM. Previous runs established
+    12 GB OOMs and 20 GB runs clean at ~13.9 GB peak. This config tests
+    intermediate caps at 2 GB steps (13, 15, 17, 19).
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 300
+  load_stereo: false
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: gpu_vram_13gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            gpu:
+              vram_limit_mb: 13312
+              sm_limit_percent: 100
+    - name: gpu_vram_15gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            gpu:
+              vram_limit_mb: 15360
+              sm_limit_percent: 100
+    - name: gpu_vram_17gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            gpu:
+              vram_limit_mb: 17408
+              sm_limit_percent: 100
+    - name: gpu_vram_19gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            gpu:
+              vram_limit_mb: 19456
+              sm_limit_percent: 100
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

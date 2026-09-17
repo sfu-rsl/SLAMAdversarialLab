@@ -1,0 +1,45 @@
+experiment:
+  name: deadline_fps15_tum_desk_droidslam_500
+  description: >-
+    Deployment-realistic deadline experiment: TUM freiburg1_desk is 30 Hz,
+    DROID uses stride=2, so effective input rate is 15 Hz. target_fps=15
+    means each frame gets exactly 66.7 ms. IO held loose (100 MB/s) so
+    the only stressor is the wall-clock deadline. 500 raw frames (250
+    sampled at stride=2). Compare drop_rate and APE against the existing
+    fps_10 (0% drops) and fps_20 (21% drops) from deadline_fps_sweep_500_frames.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 500
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: fps_15_loose_io
+      enabled: true
+      realtime:
+        target_fps: 15
+        warmup_frames: 5
+      phases:
+        - name: stress
+          duration_s: 300
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

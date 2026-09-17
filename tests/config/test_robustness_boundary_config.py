@@ -4,14 +4,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from slamadverseriallab.config.parser import Config, parse_robustness_boundary
-from slamadverseriallab.config.schema import (
+from slamadversariallab.config.parser import Config, parse_robustness_boundary
+from slamadversariallab.config.schema import (
     DatasetConfig,
     ExperimentConfig,
     OutputConfig,
     RobustnessBoundaryConfig,
 )
-from slamadverseriallab.robustness.param_spec import BoundaryParamSpec
+from slamadversariallab.robustness.param_spec import BoundaryParamSpec
 
 
 class _FogBoundaryStub:
@@ -24,7 +24,7 @@ class _RainBoundaryStub:
 
 def _set_registry(monkeypatch: pytest.MonkeyPatch, entries):
     monkeypatch.setattr(
-        "slamadverseriallab.modules.base.get_module_registry",
+        "slamadversariallab.modules.base.get_module_registry",
         lambda: entries,
     )
 

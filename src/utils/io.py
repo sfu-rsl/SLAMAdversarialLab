@@ -1,4 +1,4 @@
-"""Image I/O utilities for SLAMAdverserialLab."""
+"""Image I/O utilities for SLAMAdversarialLab."""
 
 import os
 from pathlib import Path

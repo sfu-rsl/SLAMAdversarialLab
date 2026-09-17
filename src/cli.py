@@ -1,4 +1,4 @@
-"""Command-line interface for SLAMAdverserialLab."""
+"""Command-line interface for SLAMAdversarialLab."""
 
 import argparse
 import sys
@@ -23,7 +23,7 @@ def setup_logging(verbose: bool = False) -> None:
     level = "DEBUG" if verbose else "INFO"
 
     # Update root logger level
-    active_roots = {__name__.split(".")[0], "slamadverseriallab"}
+    active_roots = {__name__.split(".")[0], "slamadversariallab"}
 
     for root_name in active_roots:
         root_logger = logging.getLogger(root_name)
@@ -63,7 +63,7 @@ def run_command(args: argparse.Namespace) -> int:
 
     # Print configuration summary
     print("\n" + "=" * 60)
-    print("SLAMAdverserialLab Configuration Summary")
+    print("SLAMAdversarialLab Configuration Summary")
     print("=" * 60)
     print(f"Experiment: {config.experiment.name}")
     print(f"Description: {config.experiment.description or 'N/A'}")
@@ -160,7 +160,8 @@ def evaluate_command(args: argparse.Namespace) -> int:
 
     mode = args.mode
     is_robustness_boundary = mode == "robustness-boundary"
-    if not is_robustness_boundary:
+    is_runtime_stress = mode == "runtime-stress"
+    if not is_robustness_boundary and not is_runtime_stress:
         if mode == "full":
             skip_slam = False
             compute_metrics = True
@@ -222,6 +223,21 @@ def evaluate_command(args: argparse.Namespace) -> int:
                 )
                 result = pipeline.run()
                 boundary_summaries[slam_algorithm] = result["summary_path"]
+            elif is_runtime_stress:
+                from .pipelines.runtime_stress_evaluation import RuntimeStressEvaluationPipeline
+
+                pipeline = RuntimeStressEvaluationPipeline(
+                    config_path=config_path,
+                    slam_algorithm=slam_algorithm,
+                    slam_config_path=slam_config_path,
+                    num_runs=num_runs,
+                    paper_mode=paper_mode,
+                )
+
+                trajectories = pipeline.run()
+
+                for name, path in trajectories.items():
+                    all_trajectories[f"{slam_algorithm}/{name}"] = path
             else:
                 from .pipelines.evaluation import EvaluationPipeline
 
@@ -519,41 +535,41 @@ def create_parser() -> argparse.ArgumentParser:
         Configured ArgumentParser instance
     """
     parser = argparse.ArgumentParser(
-        prog="slamadverseriallab",
-        description="SLAMAdverserialLab - A research framework for stress-testing SLAM systems using weather perturbations",
+        prog="slamadversariallab",
+        description="SLAMAdversarialLab - A research framework for stress-testing SLAM systems using weather perturbations",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # Generate perturbed data
-  slamadverseriallab run configs/experiment.yaml
+  slamadversariallab run configs/experiment.yaml
 
-  slamadverseriallab run configs/experiment.yaml --dry-run
+  slamadversariallab run configs/experiment.yaml --dry-run
 
   # Evaluate with S3PO-GS (run SLAM + compute metrics, default mode)
-  slamadverseriallab evaluate configs/experiment.yaml --slam s3pogs
+  slamadversariallab evaluate configs/experiment.yaml --slam s3pogs
 
   # Run SLAM only, skip metrics computation
-  slamadverseriallab evaluate configs/experiment.yaml --slam s3pogs --mode slam-only
+  slamadversariallab evaluate configs/experiment.yaml --slam s3pogs --mode slam-only
 
-  slamadverseriallab evaluate configs/experiment.yaml --slam s3pogs --mode metrics-only
+  slamadversariallab evaluate configs/experiment.yaml --slam s3pogs --mode metrics-only
 
   # Evaluate with external config file
-  slamadverseriallab evaluate configs/experiment.yaml \\
+  slamadversariallab evaluate configs/experiment.yaml \\
       --slam orbslam3 \\
       --slam-config-path /path/to/custom_config.yaml
 
   # Run with verbose logging
-  slamadverseriallab run configs/experiment.yaml --verbose
+  slamadversariallab run configs/experiment.yaml --verbose
 
   # Show version
-  slamadverseriallab --version
+  slamadversariallab --version
 """
     )
 
     parser.add_argument(
         "--version",
         action="version",
-        version=f"SLAMAdverserialLab v{__version__}"
+        version=f"SLAMAdversarialLab v{__version__}"
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -561,7 +577,7 @@ Examples:
     # Run command
     run_parser = subparsers.add_parser(
         "run",
-        help="Run a SLAMAdverserialLab experiment",
+        help="Run a SLAMAdversarialLab experiment",
         description="Execute an experiment using a configuration file"
     )
     run_parser.add_argument(
@@ -617,8 +633,8 @@ Examples:
         "--mode",
         type=str,
         default="full",
-        choices=["full", "slam-only", "metrics-only", "robustness-boundary"],
-        help="Evaluation mode: 'full' (run SLAM + compute metrics), 'slam-only' (run SLAM, no metrics), 'metrics-only' (skip SLAM, compute metrics from existing trajectories), 'robustness-boundary' (search pass/fail boundary for one perturbation parameter). Default: full"
+        choices=["full", "slam-only", "metrics-only", "robustness-boundary", "runtime-stress"],
+        help="Evaluation mode: 'full' (run SLAM + compute metrics), 'slam-only' (run SLAM, no metrics), 'metrics-only' (skip SLAM, compute metrics from existing trajectories), 'robustness-boundary' (search pass/fail boundary for one perturbation parameter), 'runtime-stress' (run baseline plus enabled runtime-stress scenarios). Default: full"
     )
     evaluate_parser.add_argument(
         "--num-runs",

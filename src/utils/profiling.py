@@ -1,4 +1,4 @@
-"""Simple timing utilities for SLAMAdverserialLab.
+"""Simple timing utilities for SLAMAdversarialLab.
 
 Provides basic execution time measurement and logging.
 """

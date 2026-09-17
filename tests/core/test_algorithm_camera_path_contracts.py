@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from slamadverseriallab.algorithms.droidslam import DROIDSLAMAlgorithm
-from slamadverseriallab.algorithms.gigaslam import GigaSLAMAlgorithm
-from slamadverseriallab.algorithms.photoslam import PhotoSLAMAlgorithm
-from slamadverseriallab.algorithms.s3pogs import S3POGSAlgorithm
-from slamadverseriallab.algorithms.types import SLAMRunRequest, SLAMRuntimeContext, SensorMode
-from slamadverseriallab.algorithms.vggtslam import VGGTSLAMAlgorithm
+from slamadversariallab.algorithms.droidslam import DROIDSLAMAlgorithm
+from slamadversariallab.algorithms.gigaslam import GigaSLAMAlgorithm
+from slamadversariallab.algorithms.photoslam import PhotoSLAMAlgorithm
+from slamadversariallab.algorithms.s3pogs import S3POGSAlgorithm
+from slamadversariallab.algorithms.types import SLAMRunRequest, SLAMRuntimeContext, SensorMode
+from slamadversariallab.algorithms.vggtslam import VGGTSLAMAlgorithm
 
 
 def _build_run_request(
