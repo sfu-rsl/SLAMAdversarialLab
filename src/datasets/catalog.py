@@ -274,7 +274,7 @@ def get_datasets_base_dir() -> Path:
     Get the base directory for datasets.
 
     Checks in order:
-    1. SLAMADVERSERIALLAB_DATA_DIR environment variable
+    1. SLAMADVERSARIALLAB_DATA_DIR environment variable
     2. ./datasets relative to project root
 
     Returns:
@@ -282,14 +282,14 @@ def get_datasets_base_dir() -> Path:
     """
     import os
 
-    env_dir = os.environ.get("SLAMADVERSERIALLAB_DATA_DIR")
+    env_dir = os.environ.get("SLAMADVERSARIALLAB_DATA_DIR")
     if env_dir:
         return Path(env_dir)
 
     # Default to ./datasets relative to project root
     current = Path(__file__).resolve()
     for parent in current.parents:
-        if (parent / "slamadverseriallab").is_dir() or (parent / "pyproject.toml").exists():
+        if (parent / "slamadversariallab").is_dir() or (parent / "pyproject.toml").exists():
             return parent / "datasets"
 
     # Fallback to current working directory
@@ -313,6 +313,16 @@ def get_euroc_base_dir() -> Path:
 
 # EuRoC MAV Dataset Catalog
 # URL pattern: http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/{category}/{sequence}/{sequence}.zip
+# UNREACHABLE AS OF 2026-09-17, and left unchanged deliberately. The host
+# resolves (129.132.38.186) but accepts no connections: curl times out after 60 s
+# on both http and https, reproduced from two independent networks including a
+# GitHub Actions runner. `ensure_euroc_sequence` therefore hangs until timeout
+# rather than failing fast.
+#
+# No replacement is hardcoded because none has been verified. Substituting a
+# guessed mirror would turn a visible outage into a silently wrong source. TUM
+# (cvg.cit.tum.de) is unaffected and still returns 200. Fetch EuRoC manually
+# meanwhile: see the Datasets section of README.md.
 EUROC_BASE_URL = "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset"
 
 EUROC_SEQUENCES: Dict[str, DatasetEntry] = {

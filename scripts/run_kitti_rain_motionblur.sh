@@ -5,7 +5,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-CONFIG="configs/slamadverseriallab/experiments/kitti/kitti_rain_motionblur_all_severities.yaml"
+CONFIG="configs/slamadversariallab/experiments/kitti/kitti_rain_motionblur_all_severities.yaml"
 ALGORITHMS=("orbslam3" "s3pogs" "gigaslam")
 
 echo "=========================================="
@@ -15,7 +15,7 @@ echo "=========================================="
 for algo in "${ALGORITHMS[@]}"; do
     echo ""
     echo ">>> Running: $algo"
-    python -m slamadverseriallab evaluate "$CONFIG" --slam "$algo" --num-runs 3 || echo "FAILED: $algo"
+    python -m slamadversariallab evaluate "$CONFIG" --slam "$algo" --num-runs 3 || echo "FAILED: $algo"
 done
 
 echo ""

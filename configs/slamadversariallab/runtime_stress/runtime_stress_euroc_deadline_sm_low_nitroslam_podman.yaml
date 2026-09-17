@@ -1,0 +1,62 @@
+experiment:
+  name: runtime_stress_euroc_deadline_sm_low_nitroslam
+  description: >-
+    Push HAMi SM (compute) throttle below Nitro-SLAM's ~5% GPU utilization to
+    see if it finally forces real-time deadline drops. 20 FPS deadline, EuRoC
+    V1_01_easy stereo-inertial. sm_limit_percent 5/3/2/1. (sm_limit 10% was inert
+    because Nitro only drives the SMs to ~5%.) ORB-SLAM3 is non-CUDA so it is
+    trivially immune; this runs nitroslam only. HAMi throttles only the CUDA
+    kernels, not Nitro's Vulkan/Kompute or CPU work, so the per-frame slowdown is
+    bounded by the CUDA fraction of per-frame time. Run:
+      SAL_HAMI_LIB_HOST_PATH=$PWD/checkpoints/hami/libvgpu.so \
+      python -m src.cli evaluate <this> --slam nitroslam --mode runtime-stress
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: fps20_sm_5
+      enabled: true
+      realtime: {target_fps: 20, warmup_frames: 30, queue_size: 2, drop_policy: drop_oldest}
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 300, controls: {gpu: {sm_limit_percent: 5}}}
+    - name: fps20_sm_3
+      enabled: true
+      realtime: {target_fps: 20, warmup_frames: 30, queue_size: 2, drop_policy: drop_oldest}
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 300, controls: {gpu: {sm_limit_percent: 3}}}
+    - name: fps20_sm_2
+      enabled: true
+      realtime: {target_fps: 20, warmup_frames: 30, queue_size: 2, drop_policy: drop_oldest}
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 300, controls: {gpu: {sm_limit_percent: 2}}}
+    - name: fps20_sm_1
+      enabled: true
+      realtime: {target_fps: 20, warmup_frames: 30, queue_size: 2, drop_policy: drop_oldest}
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 300, controls: {gpu: {sm_limit_percent: 1}}}
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

@@ -1,0 +1,58 @@
+experiment:
+  name: runtime_stress_tum_desk_orbslam3_cpu_sweep
+  description: "CPU sweep: 0.5 / 0.25 / 0.1 cores on TUM freiburg1_desk with ORB-SLAM3"
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: cpu_0.5_cores
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 30
+          controls:
+            cpu:
+              max_cores: 0.5
+
+    - name: cpu_0.25_cores
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 60
+          controls:
+            cpu:
+              max_cores: 0.25
+
+    - name: cpu_0.1_cores
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            cpu:
+              max_cores: 0.1
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

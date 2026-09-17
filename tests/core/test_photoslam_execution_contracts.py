@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from slamadverseriallab.algorithms.photoslam import PhotoSLAMAlgorithm
+from slamadversariallab.algorithms.photoslam import PhotoSLAMAlgorithm
 
 
 def test_photoslam_hang_after_shutdown_marks_execution_failed(monkeypatch, tmp_path: Path) -> None:
@@ -43,12 +43,8 @@ def test_photoslam_hang_after_shutdown_marks_execution_failed(monkeypatch, tmp_p
 
     monkeypatch.setattr("select.select", _fake_select)
 
-    clock = [0.0, 0.0, 200.0]
-
     def _fake_time() -> float:
-        if clock:
-            return clock.pop(0)
-        return 200.0
+        return 0.0 if select_calls["count"] < 2 else 200.0
 
     monkeypatch.setattr("time.time", _fake_time)
 

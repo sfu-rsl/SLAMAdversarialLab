@@ -1,0 +1,59 @@
+experiment:
+  name: deadline_fps_euroc_okvis2x
+  description: >-
+    Real-time deadline experiment for OKVIS2-X visual-inertial on EuRoC
+    V1_01_easy (cameras captured at 20 Hz, 600 frames). The deadline harness
+    paces camera frames at target_fps inside the patched DatasetReader and
+    drops any whose wall-clock deadline passed because the estimator was too
+    slow; IMU keeps flowing across drops, which is what a loaded real-time
+    VIO does. Two scenarios: fps20_native paces at the sensor's own 20 Hz
+    (OKVIS2-X tracks near real time on this host, so expect few drops) and
+    fps30_tight gives each frame 33 ms (faster than the estimator sustains,
+    so drop_oldest discards late frames). Comparing drop_rate across the two
+    shows drops track the real consumer speed. Both OKVIS2-X modes honor the
+    deadline (DatasetReader for okvis2x, XDatasetReader for okvis2xnn); run
+    with either, e.g. --slam okvis2x --mode runtime-stress.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: fps20_native
+      enabled: true
+      realtime:
+        target_fps: 20
+        warmup_frames: 20
+        # queue_size (1) and drop_policy (drop_oldest) use defaults.
+      phases:
+        - name: stress
+          duration_s: 600
+          # No controls: the wall-clock deadline is the only stressor.
+    - name: fps30_tight
+      enabled: true
+      realtime:
+        target_fps: 30
+        warmup_frames: 20
+      phases:
+        - name: stress
+          duration_s: 600
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

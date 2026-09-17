@@ -6,8 +6,8 @@ from typing import Optional
 import numpy as np
 import pytest
 
-from slamadverseriallab.config.schema import PerturbationConfig
-from slamadverseriallab.modules.base import (
+from slamadversariallab.config.schema import PerturbationConfig
+from slamadversariallab.modules.base import (
     CompositeModule,
     CompositionMode,
     ModuleSetupContext,

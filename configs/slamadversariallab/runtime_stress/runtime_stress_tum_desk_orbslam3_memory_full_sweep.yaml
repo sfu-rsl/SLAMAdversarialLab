@@ -1,0 +1,80 @@
+experiment:
+  name: runtime_stress_tum_desk_orbslam3_memory_full_sweep
+  description: "Full memory sweep: some survive, some OOM-kill"
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: mem_800mb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            memory:
+              max_mb: 800
+
+    - name: mem_700mb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            memory:
+              max_mb: 700
+
+    - name: mem_600mb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            memory:
+              max_mb: 600
+
+    - name: mem_550mb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            memory:
+              max_mb: 550
+
+    - name: mem_500mb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            memory:
+              max_mb: 500
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

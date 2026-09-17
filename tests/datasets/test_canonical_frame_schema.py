@@ -7,8 +7,8 @@ import cv2
 import numpy as np
 import pytest
 
-from slamadverseriallab.config.schema import DatasetConfig
-from slamadverseriallab.datasets.base import Dataset, MockDataset
+from slamadversariallab.config.schema import DatasetConfig
+from slamadversariallab.datasets.base import Dataset, MockDataset
 
 
 class _StaticDataset(Dataset):

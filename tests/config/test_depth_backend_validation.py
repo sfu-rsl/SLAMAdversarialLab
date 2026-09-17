@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from slamadverseriallab.config.schema import PerturbationConfig
+from slamadversariallab.config.schema import PerturbationConfig
 
 
 @pytest.mark.parametrize(

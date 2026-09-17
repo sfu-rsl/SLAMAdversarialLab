@@ -3,8 +3,8 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from slamadverseriallab.algorithms.base import ExecutionSpec, SLAMAlgorithm
-from slamadverseriallab.algorithms.types import (
+from slamadversariallab.algorithms.base import ExecutionSpec, SLAMAlgorithm
+from slamadversariallab.algorithms.types import (
     SLAMRunRequest,
     SLAMRunResult,
     SLAMRuntimeContext,

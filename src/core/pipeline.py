@@ -1,4 +1,4 @@
-"""Main pipeline for running SLAMAdverserialLab experiments."""
+"""Main pipeline for running SLAMAdversarialLab experiments."""
 
 import os
 import shutil

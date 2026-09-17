@@ -3,7 +3,11 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
+
+if TYPE_CHECKING:
+    from ..runtime_stress.models import RuntimeStressRequest
+    from ..runtime_stress.orchestrator import RuntimeStressOrchestrator
 
 
 class SensorMode(str, Enum):
@@ -25,6 +29,7 @@ class SLAMRunRequest:
     sensor_mode: SensorMode
     sequence_name: str
     extras: Dict[str, Any] = field(default_factory=dict)
+    runtime_stress: Optional["RuntimeStressRequest"] = None
 
     def __post_init__(self) -> None:
         if not str(self.sequence_name).strip():
@@ -46,6 +51,8 @@ class SLAMRuntimeContext:
     execution_inputs: Dict[str, Any] = field(default_factory=dict)
     staging_artifacts: Dict[str, Any] = field(default_factory=dict)
     notes: Dict[str, Any] = field(default_factory=dict)
+    runtime_stress: Optional["RuntimeStressRequest"] = None
+    runtime_stress_session: Optional["RuntimeStressOrchestrator"] = None
 
 
 @dataclass(frozen=True)

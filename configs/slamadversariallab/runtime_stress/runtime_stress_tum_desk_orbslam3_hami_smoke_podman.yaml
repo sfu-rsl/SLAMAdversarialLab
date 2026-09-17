@@ -1,0 +1,45 @@
+experiment:
+  name: runtime_stress_tum_desk_orbslam3_hami_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on TUM freiburg1_desk with ORB-SLAM3,
+    exercising HAMi GPU plumbing (libvgpu.so LD_PRELOAD + CUDA_DEVICE_*
+    env vars + bind mount). ORB-SLAM3 is non-CUDA, so HAMi has no CUDA
+    calls to hook — this verifies plumbing (env/mount injection,
+    controller lifecycle, telemetry, cleanup) only, not cap enforcement.
+    Cap-enforcement verification lands alongside PhotoSLAM's Podman
+    migration.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: gpu_vram_4gb_sm_50
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 8
+          controls:
+            gpu:
+              vram_limit_mb: 4096
+              sm_limit_percent: 50
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

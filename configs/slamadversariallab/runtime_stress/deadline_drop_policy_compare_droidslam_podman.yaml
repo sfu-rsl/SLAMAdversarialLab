@@ -1,0 +1,62 @@
+experiment:
+  name: deadline_drop_policy_compare_droidslam
+  description: >-
+    Drop-policy comparison on DROID-SLAM (TUM freiburg1_desk, 200 raw
+    frames / stride=2 -> 100 sampled, target 20 fps, queue_size 4). 20 fps
+    overloads DROID so the queue fills and frames drop. The two scenarios
+    differ only in drop_policy: drop_oldest (keep newest) vs drop_newest
+    (tail-drop, keep existing). Verifies the SAL_DEADLINE_DROP_POLICY env
+    reaches the container demo.py and that the survivor sets differ.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 200
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: fps20_q4_drop_oldest
+      enabled: true
+      realtime:
+        target_fps: 20
+        warmup_frames: 5
+        queue_size: 4
+        drop_policy: drop_oldest
+      phases:
+        - name: stress
+          duration_s: 300
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+    - name: fps20_q4_drop_newest
+      enabled: true
+      realtime:
+        target_fps: 20
+        warmup_frames: 5
+        queue_size: 4
+        drop_policy: drop_newest
+      phases:
+        - name: stress
+          duration_s: 300
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

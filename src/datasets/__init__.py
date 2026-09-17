@@ -1,4 +1,4 @@
-"""Dataset loaders for SLAMAdverserialLab."""
+"""Dataset loaders for SLAMAdversarialLab."""
 
 from .base import (
     CameraIntrinsics,

@@ -1,0 +1,53 @@
+experiment:
+  name: deadline_fps60_tum_desk_photoslam
+  description: >-
+    Real-time deadline test on Photo-SLAM (TUM freiburg1_desk, RGB-D). Photo-
+    SLAM is a C++ Gaussian-Splatting SLAM whose frame loop lives in the
+    compiled example examples/tum_rgbd.cpp (the wrapper picks the RGB-D binary
+    because this sequence ships a depth stream). The SAL deadline iterator is
+    compiled into that binary from the single canonical C++ header
+    (src/runtime_stress/deadline_iterator.h, staged into the build context by
+    build_image.sh). It paces the frame index to the target rate and drops
+    frames whose deadline passed before Photo-SLAM finished the previous one.
+    Frame indices stay the real dataset positions, so the saved trajectory
+    aligns by timestamp with no remap. Photo-SLAM tracks faster than the native
+    30 fps camera rate (the Gaussian mapping runs on a separate thread, so the
+    per-frame tracking call is light), so a 60 fps deadline is used to exercise
+    the drop path, the same reason VGGT-SLAM uses a higher-than-native rate. At
+    60 fps the run drops 35 of 150 frames (23.3%) and still produces a usable
+    trajectory. Verifies the deadline harness end to end on the first C++ SLAM
+    that uses the compiled-in iterator.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 150
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: fps60_deadline
+      enabled: true
+      realtime:
+        target_fps: 60
+        warmup_frames: 5
+        queue_size: 1
+        drop_policy: drop_oldest
+      phases:
+        - name: stress
+          duration_s: 600
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

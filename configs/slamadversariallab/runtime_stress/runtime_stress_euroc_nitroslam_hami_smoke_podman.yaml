@@ -1,0 +1,55 @@
+experiment:
+  name: runtime_stress_euroc_nitroslam_hami_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on EuRoC V1_01_easy with Nitro-SLAM
+    (stereo-inertial). Nitro is the first C++ CUDA SLAM in the framework: it
+    runs the stereo_inertial_euroc driver with all GPU modules on
+    (FastTrack/TurboMap/FastLoop), so unlike ORB-SLAM3 the HAMi GPU plumbing
+    (libvgpu.so LD_PRELOAD + CUDA_DEVICE_MEMORY_LIMIT/SM_LIMIT + CDI device
+    injection) is live against a real CUDA workload. NOTE: HAMi caps only the
+    CUDA-driver-API portion of VRAM. Nitro's CUDA working set is ~3 GB (largest
+    alloc CudaKeyFrameStorage d_keyframes 2.98 GB); the ~11 GB physical VRAM is
+    mostly Vulkan/Kompute (Graphite) + CUDA context, which HAMi does NOT govern.
+    The 6 GB cap sits above the ~3 GB CUDA set, so the hook fires on every
+    cuMemAlloc but is never exceeded and the trajectory completes. Sweep toward
+    ~3 GB and below to find the CUDA-VRAM breaking point (see the
+    _gpu_vram_sweep config); a 2 GB cap OOMs the d_keyframes allocation.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  # Stereo-inertial: the wrapper stages cam0 + cam1 + mav0/imu0/data.csv. A
+  # larger window than the VGGT smoke (300) gives IMU initialization headroom.
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: gpu_vram_6gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            gpu:
+              vram_limit_mb: 6144
+              sm_limit_percent: 100
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

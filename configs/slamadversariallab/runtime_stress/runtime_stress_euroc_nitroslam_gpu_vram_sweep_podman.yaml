@@ -1,0 +1,81 @@
+experiment:
+  name: runtime_stress_euroc_nitroslam_gpu_vram_sweep_podman
+  description: >-
+    GPU/VRAM sweep for Nitro-SLAM (EuRoC V1_01_easy stereo-inertial) via HAMi.
+    IMPORTANT: HAMi caps only the CUDA-driver-API portion of VRAM. Nitro's CUDA
+    working set is ~3 GB (largest alloc CudaKeyFrameStorage d_keyframes 2.98 GB);
+    the ~11 GB physical VRAM is mostly Vulkan/Kompute (Graphite) + CUDA context,
+    which HAMi does NOT govern. So caps bracket ~3 GB, not 11 GB. MEASURED:
+    6/4/3 GB complete (497 poses), 2 GB OOMs (HAMi rejects the 2.98 GB
+    d_keyframes allocation, exit 1) -> CUDA-VRAM breaking point ~2.98 GB.
+    Run with SAL_HAMI_LIB_HOST_PATH=$PWD/checkpoints/hami/libvgpu.so.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: gpu_vram_6gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            gpu:
+              vram_limit_mb: 6144
+              sm_limit_percent: 100
+    - name: gpu_vram_4gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            gpu:
+              vram_limit_mb: 4096
+              sm_limit_percent: 100
+    - name: gpu_vram_3gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            gpu:
+              vram_limit_mb: 3072
+              sm_limit_percent: 100
+    - name: gpu_vram_2gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            gpu:
+              vram_limit_mb: 2048
+              sm_limit_percent: 100
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

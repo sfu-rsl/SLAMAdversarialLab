@@ -1,0 +1,34 @@
+experiment:
+  name: runtime_stress_tum_desk_dpvo_hami_phased_podman
+  description: >-
+    Phased HAMi VRAM caps for DPVO (TUM freiburg1_desk mono, podman): 4 GB then 3 GB then 2 GB at phase boundaries, demonstrating mid-run cap mutation through the per-container shared cache file. Expect 'HAMi runtime mutation' log lines at each boundary; caps stay above the ~1.9 GB working set so the trajectory completes. DPVO tracks the 150-frame sequence in ~11-15 s, so the first two phases are short (4 s each) to cross both boundaries mid-run; a longer phase would let DPVO finish before any mutation fires.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 300
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: vram_step_down
+      enabled: true
+      phases:
+        - {name: cap4g, duration_s: 4, controls: {gpu: {vram_limit_mb: 4096, sm_limit_percent: 100}}}
+        - {name: cap3g, duration_s: 4, controls: {gpu: {vram_limit_mb: 3072, sm_limit_percent: 100}}}
+        - {name: cap2g, duration_s: 600, controls: {gpu: {vram_limit_mb: 2048, sm_limit_percent: 100}}}
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

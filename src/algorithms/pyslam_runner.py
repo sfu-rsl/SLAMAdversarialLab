@@ -3,6 +3,8 @@
 import logging
 import re
 import shutil
+import os
+import signal
 import subprocess
 from pathlib import Path
 from typing import List, Optional, TYPE_CHECKING
@@ -15,6 +17,30 @@ if TYPE_CHECKING:
     from ..datasets.base import Dataset
 
 logger = logging.getLogger(__name__)
+
+
+
+def _kill_process_group(proc) -> None:
+    """Terminate a spawned process AND anything it spawned.
+
+    Signalling only the leader is what orphans workers: the group is the unit
+    that has to die. SIGTERM first so the child can exit cleanly, SIGKILL if it
+    does not, and both tolerate the process already being gone.
+    """
+    try:
+        pgid = os.getpgid(proc.pid)
+    except (ProcessLookupError, PermissionError):
+        return
+    for sig, grace in ((signal.SIGTERM, 15), (signal.SIGKILL, 10)):
+        try:
+            os.killpg(pgid, sig)
+        except (ProcessLookupError, PermissionError):
+            return
+        try:
+            proc.wait(timeout=grace)
+            return
+        except subprocess.TimeoutExpired:
+            continue
 
 
 class PySLAMRunner:
@@ -273,15 +299,25 @@ class PySLAMRunner:
         # Choose script based on use_slam setting
         script_name = "main_slam.py" if self.use_slam else "main_vo.py"
 
+        # Invoke the ENVIRONMENT'S python directly rather than `conda run`.
+        # conda run is a WRAPPER: the pid we hold is the wrapper's, not python's,
+        # so anything that kills it -- including subprocess.run's own timeout --
+        # kills the wrapper and ORPHANS the worker underneath. Measured elsewhere
+        # in this repo: 4 processes before teardown, 3 after, with the real
+        # worker still holding ~95% of the GPU.
+        #
+        # This runner has no container doing the isolation for it (no podman
+        # anywhere in this file), so the wrapper was the only handle on the
+        # process, and there was no kill path at all.
+        env_python = Path.home() / "miniconda3" / "envs" / "pyslam" / "bin" / "python"
+        if not env_python.exists():
+            logger.error(
+                "PySLAM needs the 'pyslam' conda env but %s does not exist",
+                env_python,
+            )
+            return None
         cmd = [
-            "conda",
-            "run",
-            "-n",
-            "pyslam",
-            "--cwd",
-            str(self.pyslam_path),
-            "--no-capture-output",
-            "python",
+            str(env_python),
             script_name,
             "-c",
             str(config_path),
@@ -292,10 +328,9 @@ class PySLAMRunner:
         if self.use_slam:
             cmd.append("--no_output_date")
 
-        logger.info(f"Running PySLAM: conda run -n pyslam python {script_name} -c {config_path} --headless" +
+        logger.info(f"Running PySLAM: {env_python} {script_name} -c {config_path} --headless" +
                     (" --no_output_date" if self.use_slam else ""))
 
-        import os
         env = os.environ.copy()
 
         # Custom OpenCV install directory (contains proper Python 3.11 bindings)
@@ -314,14 +349,25 @@ class PySLAMRunner:
         env["LD_LIBRARY_PATH"] = f"{opencv_lib_path}:{pangolin_lib_path}:{conda_lib_path}:{existing_ld_path}"
 
         try:
-            result = subprocess.run(
+            # Popen + its own process group, so a timeout can signal the GROUP.
+            # subprocess.run(timeout=...) kills only the process it spawned, which
+            # left no way to reach a worker that had forked or been wrapped.
+            proc = subprocess.Popen(
                 cmd,
-                timeout=3600,  # 1 hour timeout
                 env=env,
+                cwd=str(self.pyslam_path),
+                start_new_session=True,
             )
+            try:
+                returncode = proc.wait(timeout=3600)  # 1 hour
+            except subprocess.TimeoutExpired:
+                logger.error("PySLAM execution timed out after 1 hour; "
+                             "terminating its process group")
+                _kill_process_group(proc)
+                return None
 
-            if result.returncode != 0:
-                logger.error(f"PySLAM execution failed with return code {result.returncode}")
+            if returncode != 0:
+                logger.error(f"PySLAM execution failed with return code {returncode}")
                 return None
 
             track_stats_files = list(output_dir.glob("track_stats_*.json"))
@@ -333,9 +379,6 @@ class PySLAMRunner:
                 logger.warning(f"No track stats file found in {output_dir}")
                 return None
 
-        except subprocess.TimeoutExpired:
-            logger.error("PySLAM execution timed out after 1 hour")
-            return None
         except Exception as e:
             logger.error(f"PySLAM execution failed: {e}")
             return None

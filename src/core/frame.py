@@ -1,4 +1,4 @@
-"""Frame data structure for SLAMAdverserialLab."""
+"""Frame data structure for SLAMAdversarialLab."""
 
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, Tuple

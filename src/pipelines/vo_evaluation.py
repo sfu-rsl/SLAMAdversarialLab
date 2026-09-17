@@ -182,7 +182,7 @@ class VOEvaluationPipeline:
         if not perturbed_modules:
             logger.warning(
                 f"No perturbed data found in {self.results_dir}. "
-                f"Run 'slamadverseriallab run {self.config_path}' first."
+                f"Run 'slamadversariallab run {self.config_path}' first."
             )
 
         logger.info(f"\nFound {len(perturbed_modules)} perturbed module(s):")

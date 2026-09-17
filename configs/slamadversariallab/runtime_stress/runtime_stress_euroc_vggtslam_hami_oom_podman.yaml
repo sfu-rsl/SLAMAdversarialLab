@@ -1,0 +1,47 @@
+experiment:
+  name: runtime_stress_euroc_vggtslam_hami_oom_podman
+  description: >-
+    Forced-OOM companion to the smoke scenario. A 1 GB VRAM cap is well
+    below the VGGT-1B model weights (~5 GB) plus activation memory, so
+    HAMi's cuMemAlloc intercept should return OOM to the container, the
+    scenario should fail, and the failure is captured in per-scenario
+    logs. This is the v1 positive proof that HAMi cap enforcement is
+    real. Absence of OOM means the hook did not bind; investigate the
+    libvgpu.so build / host driver version before claiming HAMi works.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 300
+  load_stereo: false
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: gpu_vram_1gb_forced_oom
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            gpu:
+              vram_limit_mb: 1024
+              sm_limit_percent: 100
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

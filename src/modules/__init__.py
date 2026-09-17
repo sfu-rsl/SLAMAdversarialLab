@@ -1,4 +1,4 @@
-"""Perturbation modules for SLAMAdverserialLab.
+"""Perturbation modules for SLAMAdversarialLab.
 
 Modules are organized into three categories:
 - scene: Scene and illumination conditions (fog, rain, day-to-night)

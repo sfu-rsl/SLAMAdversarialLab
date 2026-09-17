@@ -1,0 +1,67 @@
+experiment:
+  name: cuvslam_smoke_breaking
+  description: 'cuVSLAM integration smoke, BREAKING POINTS. The loose-cap smoke
+    proves each controller attaches; it does not prove any cap can bite. These
+    caps sit BELOW the measured working set from that run (peak RSS 257 MB,
+    GPU 669 MB, ~4.3 cores demand), so each one should change the outcome. A
+    cap that attaches and never changes anything is indistinguishable from a
+    cap that was silently dropped, which is the failure this campaign has hit
+    before.'
+  seed: 42
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: V1_01_easy
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+perturbations:
+- name: baseline
+  type: none
+  enabled: true
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+  - name: break_memory_200mb
+    enabled: true
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        memory:
+          max_mb: 200
+  - name: break_vram_512mb
+    enabled: true
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        gpu:
+          vram_limit_mb: 512
+          sm_limit_percent: 100
+  - name: break_cpu_025_deadline
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 30
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        cpu:
+          max_cores: 0.25
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

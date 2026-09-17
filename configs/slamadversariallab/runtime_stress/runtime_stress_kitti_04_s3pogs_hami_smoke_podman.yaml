@@ -1,0 +1,52 @@
+experiment:
+  name: runtime_stress_kitti_04_s3pogs_hami_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on KITTI sequence 04 with S3PO-GS.
+    Exercises the full HAMi GPU plumbing (libvgpu.so LD_PRELOAD +
+    CUDA_DEVICE_MEMORY_LIMIT/SM_LIMIT + CDI device injection +
+    per-container bind-mounted shared cache file for runtime mutation)
+    against S3PO-GS's MASt3R foundation-model + Gaussian-splat
+    (simple-knn + diff-gaussian-rasterization) native-CUDA hot path.
+
+    S3PO-GS loads the MASt3R-ViTLarge-512-catmlpdpt encoder (~2.5 GB
+    FP32) plus per-keyframe Gaussian buffers. The 12 GB cap is
+    comfortably above the working set on a 200-frame KITTI mono run,
+    so the hook fires on every cuMemAlloc but the cap is never
+    exceeded and the trajectory completes. Paired with the phased
+    config to demonstrate mid-run cap mutation at phase boundaries.
+    Fourth foundation-model SLAM in the SAL framework (sibling to
+    VGGT-SLAM, MASt3R-SLAM, and GigaSLAM).
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 200
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: gpu_vram_12gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 1200
+          controls:
+            gpu:
+              vram_limit_mb: 12288
+              sm_limit_percent: 100
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

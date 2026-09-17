@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from ..config.parser import load_config
 from ..algorithms.base import SLAMAlgorithm
 from ..algorithms.types import SensorMode, SLAMRunRequest
+from ..runtime_stress.models import RuntimeStressRequest
 from ..algorithms.registry import get_slam_algorithm
 from ..metrics.trajectory import MetricsEvaluator, detect_trajectory_format, plot_trajectories, plot_metric_comparison
 from ..datasets.factory import create_dataset
@@ -260,7 +261,7 @@ class EvaluationPipeline:
             if not perturbed_modules:
                 logger.warning(
                     f"No perturbed data found in {self.results_dir}. "
-                    f"Run 'slamadverseriallab run {self.config_path}' to generate perturbed data. "
+                    f"Run 'slamadversariallab run {self.config_path}' to generate perturbed data. "
                     f"Continuing with baseline only."
                 )
 
@@ -301,6 +302,12 @@ class EvaluationPipeline:
 
         return trajectories
 
+    def _metric_evaluator_kwargs(self) -> Dict[str, Any]:
+        """Extra MetricsEvaluator kwargs. Subclasses override (the
+        runtime-stress pipeline uses this to exclude deadline-warmup frames
+        from scoring)."""
+        return {}
+
     def _compute_metrics(self, all_trajectories: Dict[str, Path]) -> Dict[str, Any]:
         """Compute metrics comparing baseline to perturbed trajectories.
 
@@ -338,7 +345,8 @@ class EvaluationPipeline:
                 output_dir=self.metrics_dir,
                 dataset_type=self.dataset_type,
                 max_frames=max_frames,
-                timestamps_path=timestamps_path
+                timestamps_path=timestamps_path,
+                **self._metric_evaluator_kwargs()
             )
 
             metrics_results = {}
@@ -466,7 +474,7 @@ class EvaluationPipeline:
             'tracking_completeness': self._compute_stats(baseline_tracking) if baseline_tracking else None,
         }
 
-        config_module_order = [p.name for p in self.config.perturbations if p.enabled]
+        config_module_order = self._comparison_order_from_config()
 
         # Aggregate metrics per module
         aggregated = {
@@ -607,9 +615,9 @@ class EvaluationPipeline:
                         label=f'Baseline ({baseline_ape:.4f} ± {baseline_ape_std:.4f} m)', zorder=0)
         ax1.errorbar(x, ape_means, yerr=ape_stds, fmt='o', markersize=8,
                      capsize=5, capthick=2, color='steelblue', ecolor='steelblue',
-                     label='Perturbed (mean ± std)', zorder=2)
+                     label=self._comparison_series_label(), zorder=2)
 
-        ax1.set_xlabel('Perturbation Module', fontsize=12)
+        ax1.set_xlabel(self._comparison_axis_label(), fontsize=12)
         ax1.set_ylabel('APE RMSE (m)', fontsize=12)
         ax1.set_title(f'APE RMSE ({aggregated["run_count"]} runs per module)',
                       fontsize=14, fontweight='bold')
@@ -627,9 +635,9 @@ class EvaluationPipeline:
                         label=f'Baseline ({baseline_rpe:.4f} ± {baseline_rpe_std:.4f} m)', zorder=0)
         ax2.errorbar(x, rpe_means, yerr=rpe_stds, fmt='o', markersize=8,
                      capsize=5, capthick=2, color='coral', ecolor='coral',
-                     label='Perturbed (mean ± std)', zorder=2)
+                     label=self._comparison_series_label(), zorder=2)
 
-        ax2.set_xlabel('Perturbation Module', fontsize=12)
+        ax2.set_xlabel(self._comparison_axis_label(), fontsize=12)
         ax2.set_ylabel('RPE RMSE (m)', fontsize=12)
         ax2.set_title(f'RPE RMSE ({aggregated["run_count"]} runs per module)',
                       fontsize=14, fontweight='bold')
@@ -666,7 +674,10 @@ class EvaluationPipeline:
                 tc = baseline['tracking_completeness']
                 logger.info(f"  Tracking: {tc['mean']:.1f}% (±{tc['std']:.1f}%)")
 
-        logger.info(f"\nPerturbed Modules (aggregated across {aggregated['run_count']} run(s)):")
+        logger.info(
+            f"\n{self._comparison_collection_label()} "
+            f"(aggregated across {aggregated['run_count']} run(s)):"
+        )
         module_order = aggregated.get('module_order', sorted(aggregated['perturbed_modules'].keys()))
         module_order = [m for m in module_order if m in aggregated['perturbed_modules']]
 
@@ -707,11 +718,11 @@ class EvaluationPipeline:
 
         baseline_keys = [k for k in all_trajectories.keys() if k.startswith('baseline_run_')]
         has_baseline = len(baseline_keys) > 0
-        perturbed_count = len(all_trajectories) - len(baseline_keys)
+        comparison_count = len(all_trajectories) - len(baseline_keys)
 
         if has_baseline:
             logger.info(f"  Baseline: {len(baseline_keys)}")
-            logger.info(f"  Perturbed: {perturbed_count}")
+            logger.info(f"  {self._comparison_count_label()}: {comparison_count}")
 
         logger.info("\nTrajectory files:")
         for name in sorted(all_trajectories.keys()):
@@ -756,6 +767,26 @@ class EvaluationPipeline:
             ordered_modules.append(name)
 
         return ordered_modules
+
+    def _comparison_count_label(self) -> str:
+        """Return summary label for the non-baseline comparison set."""
+        return "Perturbed"
+
+    def _comparison_collection_label(self) -> str:
+        """Return the collection label for aggregated comparison outputs."""
+        return "Perturbed Modules"
+
+    def _comparison_axis_label(self) -> str:
+        """Return the x-axis label for aggregated comparison plots."""
+        return "Perturbation Module"
+
+    def _comparison_series_label(self) -> str:
+        """Return the legend label for non-baseline series."""
+        return "Perturbed (mean ± std)"
+
+    def _comparison_order_from_config(self) -> List[str]:
+        """Return preferred ordering for comparison outputs."""
+        return [p.name for p in self.config.perturbations if p.enabled]
 
     def _infer_sensor_mode(self) -> SensorMode:
         """Infer sensor mode from dataset contract and algorithm capabilities."""
@@ -827,7 +858,12 @@ class EvaluationPipeline:
 
         return normalized
 
-    def _create_run_request(self, dataset_path: Path, output_dir: Path) -> SLAMRunRequest:
+    def _create_run_request(
+        self,
+        dataset_path: Path,
+        output_dir: Path,
+        runtime_stress: Optional[RuntimeStressRequest] = None,
+    ) -> SLAMRunRequest:
         """Create a structured request for SLAM algorithm execution."""
         sequence_name = (self.config.dataset.sequence or "").strip()
         if not sequence_name:
@@ -843,6 +879,7 @@ class EvaluationPipeline:
             for role, directory_name in camera_dirs.items()
         }
         timestamps_by_frame = self._resolve_algorithm_timestamps()
+        frame_image_paths = [str(p) for p in self.dataset.get_image_paths("left")]
 
         return SLAMRunRequest(
             dataset_path=dataset_path,
@@ -855,7 +892,9 @@ class EvaluationPipeline:
                 "camera_dirs": camera_dirs,
                 "camera_paths": camera_paths,
                 "timestamps_by_frame": timestamps_by_frame,
+                "frame_image_paths": frame_image_paths,
             },
+            runtime_stress=runtime_stress,
         )
 
     def _get_ground_truth_path(self) -> Path:

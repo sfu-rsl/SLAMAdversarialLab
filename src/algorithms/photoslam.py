@@ -1,14 +1,25 @@
 """Photo-SLAM algorithm implementation.
 
 Photo-SLAM: Real-time Simultaneous Localization and Photorealistic Mapping
-for Monocular, Stereo, and RGB-D Cameras (CVPR 2024)
+for Monocular, Stereo, and RGB-D Cameras (CVPR 2024).
+
+Two execution runtimes are supported, mirroring VGGT-SLAM and DROID-SLAM:
+
+* ``container_runtime=None`` (default): host build at
+  ``deps/slam-algorithms/Photo-SLAM`` invoked directly via the C++ binaries
+  in ``bin/`` (``tum_mono``, ``tum_rgbd``, ``euroc_stereo``).
+* ``container_runtime="podman"``: ``photoslam:latest`` Podman image. This
+  path is the one runtime-stress scenarios use to exercise HAMi GPU caps
+  against Photo-SLAM's Gaussian Splatting + LibTorch hot path.
 """
 
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -18,6 +29,15 @@ from .types import SLAMRunRequest, SensorMode, SLAMRuntimeContext
 logger = logging.getLogger(__name__)
 
 
+_PODMAN_IMAGE = "photoslam:latest"
+_CONTAINER_DATASET_PATH = "/dataset"
+_CONTAINER_OUTPUT_PATH = "/output"
+_CONTAINER_ASSOC_PATH = "/dataset_meta/associations.txt"
+_CONTAINER_EUROC_TIMESTAMPS_PATH = "/dataset_meta/photoslam_timestamps.txt"
+_CONTAINER_TORCH_HUB_PATH = "/root/.cache/torch/hub"
+_CONTAINER_WORKDIR = "/photo-slam"
+
+
 class PhotoSLAMAlgorithm(SLAMAlgorithm):
     """Photo-SLAM algorithm via native C++ executables.
 
@@ -25,9 +45,21 @@ class PhotoSLAMAlgorithm(SLAMAlgorithm):
     Uses ORB-SLAM3 for tracking with Gaussian Splatting for mapping.
     """
 
-    def __init__(self):
+    def __init__(self, container_runtime: Optional[str] = None):
+        if container_runtime is not None and container_runtime != "podman":
+            raise ValueError(
+                f"container_runtime must be None or 'podman', got {container_runtime!r}"
+            )
+        self.container_runtime = container_runtime
         self.photoslam_path = Path(__file__).parent.parent.parent / "deps" / "slam-algorithms" / "Photo-SLAM"
+        self.docker_image = _PODMAN_IMAGE
         self._staged_dataset_dir: Optional[Path] = None
+
+    @property
+    def runtime_stress_target_kind(self) -> str:
+        if self.container_runtime is None:
+            return "host_process_group"
+        return f"{self.container_runtime}_container"
 
     @property
     def name(self) -> str:
@@ -69,14 +101,47 @@ class PhotoSLAMAlgorithm(SLAMAlgorithm):
 
     def _preflight_checks(self, request: SLAMRunRequest, ctx: SLAMRuntimeContext) -> None:
         """Validate Photo-SLAM runtime dependencies."""
-        if not self.photoslam_path.exists():
-            raise RuntimeError(f"Photo-SLAM not found at {self.photoslam_path}")
+        if self.container_runtime is None:
+            # Host build: need the source tree and the built C++ binaries.
+            if not self.photoslam_path.exists():
+                raise RuntimeError(f"Photo-SLAM not found at {self.photoslam_path}")
 
-        bin_dir = self.photoslam_path / "bin"
-        if not bin_dir.exists():
+            bin_dir = self.photoslam_path / "bin"
+            if not bin_dir.exists():
+                raise RuntimeError(
+                    f"Photo-SLAM is not built. Missing directory: {bin_dir}. "
+                    f"Run: {self.photoslam_path}/install_all.sh"
+                )
+            return
+
+        # Podman path: need the runtime + image. Don't fail on missing image —
+        # warn so the operator can build it. The C++ binaries ship inside the
+        # image, so the host's bin/ dir is not required.
+        if shutil.which(self.container_runtime) is None:
             raise RuntimeError(
-                f"Photo-SLAM is not built. Missing directory: {bin_dir}. "
-                f"Run: {self.photoslam_path}/install_all.sh"
+                f"container_runtime is '{self.container_runtime}' but the binary "
+                "is not on PATH. Install it or change container_runtime."
+            )
+        try:
+            result = subprocess.run(
+                [self.container_runtime, "image", "exists", self.docker_image],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+            if result.returncode != 0:
+                logger.warning(
+                    "Podman image '%s' not found locally. Build with: "
+                    "cd %s && ./build_image.sh "
+                    "(stages the C++ deadline iterator from "
+                    "src/runtime_stress, then runs podman build).",
+                    self.docker_image,
+                    self.photoslam_path,
+                )
+        except Exception as exc:
+            logger.info(
+                "Skipping podman image existence check: %s", exc,
             )
 
     def _stage_dataset(
@@ -272,8 +337,9 @@ class PhotoSLAMAlgorithm(SLAMAlgorithm):
         staged_timestamps_file = inputs["staged_timestamps_file"]
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        bin_dir = self.photoslam_path / "bin"
-
+        # Resolve the per-mode binary + configs first. These selections
+        # are the same regardless of conda vs podman; only the absolute
+        # paths embedded into the final command differ.
         if dataset_type.lower() == "tum":
             if is_stereo:
                 logger.error("  Photo-SLAM TUM does not support stereo mode.")
@@ -283,10 +349,10 @@ class PhotoSLAMAlgorithm(SLAMAlgorithm):
             use_rgbd = depth_path.exists() and depth_path.is_dir() and any(depth_path.iterdir())
 
             if use_rgbd:
-                executable = bin_dir / "tum_rgbd"
+                bin_name = "tum_rgbd"
                 mode = "RGB-D"
             else:
-                executable = bin_dir / "tum_mono"
+                bin_name = "tum_mono"
                 mode = "Monocular"
 
             orb_config = self._get_orb_config(slam_config, mode, "TUM", is_external)
@@ -295,14 +361,6 @@ class PhotoSLAMAlgorithm(SLAMAlgorithm):
             if not orb_config or not gaussian_config:
                 return None
 
-            cmd_args = [
-                str(executable),
-                str(self.photoslam_path / "ORB-SLAM3" / "Vocabulary" / "ORBvoc.txt"),
-                str(orb_config),
-                str(gaussian_config),
-                str(dataset_path.resolve()),
-            ]
-
             if use_rgbd:
                 if not isinstance(staged_association_file, Path) or not staged_association_file.exists():
                     logger.error(
@@ -310,17 +368,13 @@ class PhotoSLAMAlgorithm(SLAMAlgorithm):
                         "dataset staging did not provide one."
                     )
                     return None
-                cmd_args.append(str(staged_association_file))
-
-            cmd_args.append(str(output_dir.resolve()) + "/")
-            cmd_args.append("no_viewer")
 
         elif dataset_type.lower() == "euroc":
             if not is_stereo:
                 logger.error("  Photo-SLAM EuRoC requires stereo mode.")
                 return None
 
-            executable = bin_dir / "euroc_stereo"
+            bin_name = "euroc_stereo"
             mode = "Stereo"
 
             orb_config = self._get_orb_config(slam_config, mode, "EuRoC", is_external)
@@ -334,7 +388,65 @@ class PhotoSLAMAlgorithm(SLAMAlgorithm):
                     "  Photo-SLAM EuRoC mode requires a staged timestamps file; dataset staging did not provide one."
                 )
                 return None
+        else:
+            logger.error(f"Unsupported dataset type: {dataset_type}")
+            return None
 
+        if self.container_runtime is None:
+            return self._build_host_execution_spec(
+                bin_name=bin_name,
+                orb_config=orb_config,
+                gaussian_config=gaussian_config,
+                dataset_path=dataset_path,
+                output_dir=output_dir,
+                dataset_type=dataset_type,
+                use_rgbd=(dataset_type.lower() == "tum" and bin_name == "tum_rgbd"),
+                staged_association_file=staged_association_file,
+                staged_timestamps_file=staged_timestamps_file,
+            )
+
+        return self._build_container_execution_spec(
+            ctx=ctx,
+            bin_name=bin_name,
+            orb_config=orb_config,
+            gaussian_config=gaussian_config,
+            dataset_path=dataset_path,
+            output_dir=output_dir,
+            dataset_type=dataset_type,
+            use_rgbd=(dataset_type.lower() == "tum" and bin_name == "tum_rgbd"),
+            staged_association_file=staged_association_file,
+            staged_timestamps_file=staged_timestamps_file,
+        )
+
+    def _build_host_execution_spec(
+        self,
+        bin_name: str,
+        orb_config: Path,
+        gaussian_config: Path,
+        dataset_path: Path,
+        output_dir: Path,
+        dataset_type: str,
+        use_rgbd: bool,
+        staged_association_file: Optional[Path],
+        staged_timestamps_file: Optional[Path],
+    ) -> Optional[ExecutionSpec]:
+        """Build the host (conda/native) execution spec for Photo-SLAM."""
+        bin_dir = self.photoslam_path / "bin"
+        executable = bin_dir / bin_name
+
+        if dataset_type.lower() == "tum":
+            cmd_args = [
+                str(executable),
+                str(self.photoslam_path / "ORB-SLAM3" / "Vocabulary" / "ORBvoc.txt"),
+                str(orb_config),
+                str(gaussian_config),
+                str(dataset_path.resolve()),
+            ]
+            if use_rgbd:
+                cmd_args.append(str(staged_association_file))
+            cmd_args.append(str(output_dir.resolve()) + "/")
+            cmd_args.append("no_viewer")
+        else:
             cmd_args = [
                 str(executable),
                 str(self.photoslam_path / "ORB-SLAM3" / "Vocabulary" / "ORBvoc.txt"),
@@ -343,11 +455,8 @@ class PhotoSLAMAlgorithm(SLAMAlgorithm):
                 str(dataset_path.resolve()),
                 str(staged_timestamps_file),
                 str(output_dir.resolve()) + "/",
-                "no_viewer"
+                "no_viewer",
             ]
-        else:
-            logger.error(f"Unsupported dataset type: {dataset_type}")
-            return None
 
         if not executable.exists():
             logger.error(f"Executable not found: {executable}")
@@ -362,6 +471,244 @@ class PhotoSLAMAlgorithm(SLAMAlgorithm):
             custom_runner=lambda spec: self._run_photoslam(spec.cmd),
             log_prefix="Photo-SLAM",
         )
+
+    def _build_container_execution_spec(
+        self,
+        ctx: SLAMRuntimeContext,
+        bin_name: str,
+        orb_config: Path,
+        gaussian_config: Path,
+        dataset_path: Path,
+        output_dir: Path,
+        dataset_type: str,
+        use_rgbd: bool,
+        staged_association_file: Optional[Path],
+        staged_timestamps_file: Optional[Path],
+    ) -> ExecutionSpec:
+        """Build a Podman execution spec that runs ``photoslam:latest``.
+
+        The container ships the C++ binaries + the ORB-SLAM3 vocabulary +
+        the cfg/ tree at ``_CONTAINER_WORKDIR``.
+
+        ``dataset_path`` (the host's staged dataset root from
+        ``_stage_dataset``) is bind-mounted at ``_CONTAINER_DATASET_PATH``.
+        Because that staged dir is built from absolute-path symlinks into
+        the real dataset / perturbed camera dirs, we ALSO bind-mount each
+        symlink target at its same host path inside the container so the
+        symlinks resolve correctly. Otherwise Photo-SLAM's C++ binary
+        would open broken symlinks and fail to read frames.
+
+        The host-staged association / timestamps file is bind-mounted to
+        a stable ``/dataset_meta/`` path so the container can refer to it
+        by a path that doesn't collide with the dataset mount.
+        """
+        container_name = self._build_runtime_stress_container_name(ctx, output_dir)
+        torch_hub_cache = Path.home() / ".cache" / "torch" / "hub"
+        torch_hub_cache.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        container_cmd: List[str] = [
+            self.container_runtime, "run", "--rm",
+            "--name", container_name,
+            "-v", f"{dataset_path.resolve()}:{_CONTAINER_DATASET_PATH}:ro",
+            "-v", f"{output_dir.resolve()}:{_CONTAINER_OUTPUT_PATH}",
+            "-v", f"{torch_hub_cache.resolve()}:{_CONTAINER_TORCH_HUB_PATH}",
+        ]
+
+        # Walk the staged dataset for absolute-path symlinks and bind-mount
+        # each symlink target at its same host path inside the container so
+        # the symlinks (e.g. staged rgb/ -> real rgb/ in the perturbed dir)
+        # resolve. ro-bind so the container can't accidentally mutate the
+        # source data.
+        for host_path in self._collect_symlink_target_mounts(dataset_path):
+            container_cmd.extend(["-v", f"{host_path}:{host_path}:ro"])
+
+        # Bind-mount any host-staged metadata files (TUM associations or
+        # EuRoC per-frame timestamps) into a stable container path so the
+        # C++ binary can refer to them by a path it knows ahead of time.
+        if use_rgbd and isinstance(staged_association_file, Path):
+            container_cmd.extend([
+                "-v",
+                f"{staged_association_file.resolve()}:{_CONTAINER_ASSOC_PATH}:ro",
+            ])
+        if dataset_type.lower() == "euroc" and isinstance(staged_timestamps_file, Path):
+            container_cmd.extend([
+                "-v",
+                f"{staged_timestamps_file.resolve()}:{_CONTAINER_EUROC_TIMESTAMPS_PATH}:ro",
+            ])
+
+        extras = self._runtime_stress_launch_extras()
+        extras_devices = list(extras.get("devices") or [])
+        # Photo-SLAM always needs CUDA (LibTorch + cuda_rasterizer); ensure
+        # the GPU is always attached. HAMi adds extra env/mounts on top.
+        devices = extras_devices if extras_devices else ["nvidia.com/gpu=all"]
+
+        for key, value in (extras.get("env") or {}).items():
+            container_cmd.extend(["-e", f"{key}={value}"])
+        for mount in (extras.get("mounts") or []):
+            src, dst, mode = mount
+            container_cmd.extend(["-v", f"{src}:{dst}:{mode}"])
+        for device in devices:
+            container_cmd.extend(["--device", device])
+        # Launch-time flags (e.g. a constant memory cap applied at run rather
+        # than by a later update, which hung on at least one system).
+        container_cmd.extend(extras.get("run_flags") or [])
+
+        # SAL real-time deadline harness propagation (no-op when the
+        # harness is not active in the host env).
+        from ..runtime_stress.podman_injection import apply_realtime_to_podman_cmd
+        apply_realtime_to_podman_cmd(container_cmd, _CONTAINER_OUTPUT_PATH)
+
+        # When HAMi is active, pre-create + bind-mount the per-container
+        # shared cache file so GpuHamiController.apply() can mutate the
+        # cap mid-run by writing directly to the mmap'd region. See
+        # docs/fuzzy-slam/hami/HAMI_RUNTIME_MUTATION_INVESTIGATION.md.
+        hami_active = "LD_PRELOAD" in (extras.get("env") or {})
+        if hami_active:
+            from ..runtime_stress.hami_controller import (
+                HAMI_SHARED_CACHE,
+                prepare_hami_cache_file,
+            )
+            cache_host_path = prepare_hami_cache_file(container_name)
+            container_cmd.extend(
+                ["-v", f"{cache_host_path}:{HAMI_SHARED_CACHE}:rw"]
+            )
+
+        container_cmd.append(self.docker_image)
+
+        # Build the C++ binary invocation inside the container. The image
+        # was COPYed into _CONTAINER_WORKDIR and the cfg/ + ORB-SLAM3/
+        # tree is shipped relative to that working dir, so we use
+        # container-internal paths for those args.
+        vocab_path = f"{_CONTAINER_WORKDIR}/ORB-SLAM3/Vocabulary/ORBvoc.txt"
+        orb_rel = self._relative_config_in_container(orb_config)
+        gauss_rel = self._relative_config_in_container(gaussian_config)
+        positional_args = [
+            f"{_CONTAINER_WORKDIR}/bin/{bin_name}",
+            vocab_path,
+            orb_rel,
+            gauss_rel,
+            _CONTAINER_DATASET_PATH,
+        ]
+        if use_rgbd:
+            positional_args.append(_CONTAINER_ASSOC_PATH)
+        if dataset_type.lower() == "euroc":
+            positional_args.append(_CONTAINER_EUROC_TIMESTAMPS_PATH)
+        positional_args.append(f"{_CONTAINER_OUTPUT_PATH}/")
+        positional_args.append("no_viewer")
+
+        # bash -c keeps cd-then-exec semantics consistent with the
+        # other Podman wrappers (DROID, VGGT) and lets shell-level
+        # env-var expansion / LD_LIBRARY_PATH hooks land in one place
+        # if we add them later.
+        main_cmd = f"cd {_CONTAINER_WORKDIR} && " + " ".join(positional_args)
+        container_cmd.extend(["bash", "-c", main_cmd])
+
+        logger.info(
+            "  Executing Photo-SLAM via %s container: %s",
+            self.container_runtime, container_name,
+        )
+
+        io_target_paths = [str(dataset_path.resolve()), str(output_dir.resolve())]
+
+        return ExecutionSpec(
+            cmd=container_cmd,
+            stream_output=False,
+            log_prefix="Photo-SLAM",
+            target_kind=f"{self.container_runtime}_container",
+            target_metadata={
+                "container_name": container_name,
+                "io_target_paths": io_target_paths,
+            },
+        )
+
+    def _build_runtime_stress_container_name(
+        self,
+        ctx: SLAMRuntimeContext,
+        output_dir: Path,
+    ) -> str:
+        """Build a unique podman-compliant container name for one Photo-SLAM run."""
+        raw_name = f"photoslam-{ctx.sequence_name}-{output_dir.name}-{uuid.uuid4().hex[:8]}"
+        sanitized = re.sub(r"[^a-zA-Z0-9_.-]+", "-", raw_name.lower()).strip("-")
+        return sanitized[:120]
+
+    def _collect_symlink_target_mounts(self, dataset_root: Path) -> List[str]:
+        """Return a deduplicated list of absolute host paths to bind-mount so
+        absolute-path symlinks under ``dataset_root`` resolve inside the
+        container.
+
+        ``_stage_dataset`` builds the staged dataset by writing absolute
+        symlinks pointing into the original perturbed dataset (e.g.
+        ``staged_root/rgb -> /abs/path/to/perturbed_rgb``). Inside the
+        container, those symlinks point to host-absolute paths that
+        aren't visible unless we explicitly bind-mount their target
+        directories. This helper walks the staged tree once and returns
+        the set of target paths the container needs to see.
+
+        Uses ``os.walk`` with ``followlinks=False`` so we don't recurse
+        through symlinks back into their (possibly huge) target trees.
+
+        Each path is returned as a string. Caller bind-mounts each at
+        the same path inside the container.
+        """
+        if not dataset_root.exists():
+            return []
+
+        seen: List[str] = []
+        seen_set: set[str] = set()
+
+        def _maybe_record(entry: Path) -> None:
+            if not entry.is_symlink():
+                return
+            try:
+                target = Path(os.readlink(entry))
+            except OSError:
+                return
+            if not target.is_absolute():
+                # Relative-path symlinks resolve naturally inside the
+                # container because the host_root is already mounted.
+                return
+            target_str = str(target.resolve())
+            if target_str in seen_set:
+                return
+            if not Path(target_str).exists():
+                return
+            seen.append(target_str)
+            seen_set.add(target_str)
+
+        for root, dirs, files in os.walk(str(dataset_root), followlinks=False):
+            root_path = Path(root)
+            for d in dirs:
+                _maybe_record(root_path / d)
+            for f in files:
+                _maybe_record(root_path / f)
+        # Top-level symlinks (siblings of dataset_root) aren't covered by
+        # os.walk's traversal of dataset_root itself; cover those too.
+        for entry in dataset_root.iterdir():
+            _maybe_record(entry)
+        return seen
+
+    def _relative_config_in_container(self, host_config_path: Path) -> str:
+        """Translate a host-side cfg path under ``photoslam_path`` to its
+        container-side path under ``_CONTAINER_WORKDIR``.
+
+        The cfg/ tree is COPYed into the image verbatim, so the relative
+        layout matches. External configs (anywhere on the host) fall back
+        to using their absolute host path inside the container, which
+        requires the operator to bind-mount them separately; we log a
+        warning so a misconfigured external config doesn't fail silently.
+        """
+        try:
+            relative = host_config_path.resolve().relative_to(self.photoslam_path.resolve())
+        except ValueError:
+            logger.warning(
+                "  External Photo-SLAM config %s is outside of %s; the "
+                "container path will not resolve. Bind-mount the config "
+                "into %s or move it into Photo-SLAM/cfg/.",
+                host_config_path, self.photoslam_path, _CONTAINER_WORKDIR,
+            )
+            return str(host_config_path.resolve())
+        return f"{_CONTAINER_WORKDIR}/{relative.as_posix()}"
 
     def _execute(self, request: SLAMRunRequest, ctx: SLAMRuntimeContext) -> bool:
         spec = self._build_execution_spec(request, ctx)
@@ -574,15 +921,11 @@ class PhotoSLAMAlgorithm(SLAMAlgorithm):
 
             env["LD_LIBRARY_PATH"] = ":".join(resolved_paths)
 
-            process = subprocess.Popen(
+            process = self._spawn_streaming_process(
                 cmd_args,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                cwd=str(self.photoslam_path),
+                cwd=self.photoslam_path,
                 env=env,
-                start_new_session=True
+                start_new_session=True,
             )
 
             shutdown_seen = False

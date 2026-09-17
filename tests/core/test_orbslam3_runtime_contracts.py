@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from slamadverseriallab.algorithms.orbslam3 import ORBSLAM3Algorithm
-from slamadverseriallab.algorithms.types import SLAMRunRequest, SLAMRuntimeContext, SensorMode
+from slamadversariallab.algorithms.orbslam3 import ORBSLAM3Algorithm
+from slamadversariallab.algorithms.types import SLAMRunRequest, SLAMRuntimeContext, SensorMode
+from slamadversariallab.runtime_stress.models import RuntimeStressRequest
 
 
 def _build_request(
@@ -107,9 +108,9 @@ def test_orbslam3_preflight_tum_requires_existing_association_even_with_rgb_dept
     class _Result:
         returncode = 0
 
-    monkeypatch.setattr("slamadverseriallab.algorithms.orbslam3.shutil.which", lambda _bin: "/usr/bin/docker")
+    monkeypatch.setattr("slamadversariallab.algorithms.orbslam3.shutil.which", lambda _bin: "/usr/bin/docker")
     monkeypatch.setattr(
-        "slamadverseriallab.algorithms.orbslam3.subprocess.run",
+        "slamadversariallab.algorithms.orbslam3.subprocess.run",
         lambda *_args, **_kwargs: _Result(),
     )
 
@@ -164,7 +165,7 @@ def test_orbslam3_tum_stage_resolver_is_called_in_strict_mode(
         return expected_assoc
 
     monkeypatch.setattr(
-        "slamadverseriallab.algorithms.orbslam3.resolve_tum_association_for_orbslam3",
+        "slamadversariallab.algorithms.orbslam3.resolve_tum_association_for_orbslam3",
         _fake_resolver,
     )
 
@@ -280,9 +281,9 @@ def test_orbslam3_preflight_requires_camera_paths_for_euroc(tmp_path: Path, monk
     class _Result:
         returncode = 0
 
-    monkeypatch.setattr("slamadverseriallab.algorithms.orbslam3.shutil.which", lambda _bin: "/usr/bin/docker")
+    monkeypatch.setattr("slamadversariallab.algorithms.orbslam3.shutil.which", lambda _bin: "/usr/bin/docker")
     monkeypatch.setattr(
-        "slamadverseriallab.algorithms.orbslam3.subprocess.run",
+        "slamadversariallab.algorithms.orbslam3.subprocess.run",
         lambda *_args, **_kwargs: _Result(),
     )
 
@@ -317,6 +318,104 @@ def test_orbslam3_execution_spec_uses_staged_euroc_timestamps_file(tmp_path: Pat
     cmd_text = " ".join(spec.cmd)
     assert "/dataset/orbslam3_timestamps.txt" in cmd_text
     assert "EuRoC_TimeStamps" not in cmd_text
+
+
+def test_orbslam3_execution_spec_exposes_named_docker_target_for_runtime_stress(tmp_path: Path) -> None:
+    request = _build_request(
+        tmp_path,
+        dataset_type="euroc",
+        sensor_mode=SensorMode.STEREO,
+        extras={},
+    )
+    ctx = _build_context(request)
+    ctx.execution_inputs = {
+        "dataset_path": request.dataset_path,
+        "output_dir": request.output_dir,
+        "dataset_type": "euroc",
+        "is_stereo": True,
+        "sequence_name": "V1_01_easy",
+        "is_external": False,
+        "kitti_image_mounts": None,
+        "euroc_image_mounts": [],
+    }
+
+    algo = ORBSLAM3Algorithm()
+    spec = algo._build_execution_spec(request, ctx)
+
+    assert spec is not None
+    assert spec.target_kind == "docker_container"
+    assert spec.target_metadata is not None
+    container_name = spec.target_metadata["container_name"]
+    assert isinstance(container_name, str)
+    assert container_name.startswith("orbslam3-")
+    cmd_text = " ".join(spec.cmd)
+    assert f"--name {container_name}" in cmd_text
+
+
+def test_orbslam3_runtime_stress_execution_spec_preserves_slam_exit_code_and_logs_output(tmp_path: Path) -> None:
+    request = _build_request(
+        tmp_path,
+        dataset_type="tum",
+        sensor_mode=SensorMode.RGBD,
+        extras={},
+    )
+    ctx = _build_context(request)
+    ctx.execution_inputs = {
+        "dataset_path": request.dataset_path,
+        "output_dir": request.output_dir,
+        "dataset_type": "tum",
+        "is_stereo": False,
+        "sequence_name": request.sequence_name,
+        "is_external": False,
+        "kitti_image_mounts": None,
+        "euroc_image_mounts": None,
+    }
+    ctx.staging_artifacts["association_file"] = "associations.txt"
+    ctx.runtime_stress = RuntimeStressRequest(
+        scenario_name="cpu_smoke",
+        telemetry_sample_period_ms=500,
+        phases=[],
+    )
+
+    algo = ORBSLAM3Algorithm()
+    spec = algo._build_execution_spec(request, ctx)
+
+    assert spec is not None
+    cmd_text = " ".join(spec.cmd)
+    assert "/output/slam_output.log" in cmd_text
+    assert "slam_exit_code.txt" in cmd_text
+    assert "PIPESTATUS[0]" in cmd_text
+    assert 'exit "$slam_status"' in cmd_text
+
+
+def test_orbslam3_standard_execution_spec_does_not_enable_runtime_stress_logging(tmp_path: Path) -> None:
+    request = _build_request(
+        tmp_path,
+        dataset_type="tum",
+        sensor_mode=SensorMode.RGBD,
+        extras={},
+    )
+    ctx = _build_context(request)
+    ctx.execution_inputs = {
+        "dataset_path": request.dataset_path,
+        "output_dir": request.output_dir,
+        "dataset_type": "tum",
+        "is_stereo": False,
+        "sequence_name": request.sequence_name,
+        "is_external": False,
+        "kitti_image_mounts": None,
+        "euroc_image_mounts": None,
+    }
+    ctx.staging_artifacts["association_file"] = "associations.txt"
+
+    algo = ORBSLAM3Algorithm()
+    spec = algo._build_execution_spec(request, ctx)
+
+    assert spec is not None
+    cmd_text = " ".join(spec.cmd)
+    assert "/output/slam_output.log" not in cmd_text
+    assert "slam_exit_code.txt" not in cmd_text
+    assert "PIPESTATUS[0]" not in cmd_text
 
 
 def test_orbslam3_execution_spec_tum_requires_staged_association_without_fallback_lookup(

@@ -1,0 +1,44 @@
+experiment:
+  name: runtime_stress_tum_desk_photoslam_memory_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on TUM freiburg1_desk with Photo-SLAM,
+    exercising the memory stressor (cgroup v2 memory.max via
+    PodmanMemoryController). The 3 GB cap sits comfortably above Photo-SLAM's
+    ~1.3 GB host-RAM working set on an 80-frame run, so the cap is applied to
+    the live container's cgroup but never forces an OOM; the SLAM completes and
+    produces a trajectory. Verifies the memory control plumbing end to end
+    (a tighter, breaking-point cap is a separate experiment).
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: mem_3gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 60
+          controls:
+            memory:
+              max_mb: 3072
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

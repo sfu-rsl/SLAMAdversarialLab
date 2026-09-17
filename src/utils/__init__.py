@@ -1,4 +1,4 @@
-"""Utility modules for SLAMAdverserialLab."""
+"""Utility modules for SLAMAdversarialLab."""
 
 from .logging import get_logger
 from .io import (

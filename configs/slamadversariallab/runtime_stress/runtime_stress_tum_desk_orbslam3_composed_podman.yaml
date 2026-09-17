@@ -1,0 +1,76 @@
+experiment:
+  name: runtime_stress_tum_desk_orbslam3_composed_podman
+  description: >-
+    Demonstrates composable stressors: a top-level `stressors:` library defines
+    named multi-axis profiles, and per-phase `stressors:` lists merge them into
+    one effective cap set with TIGHTER-WINS semantics (smaller is more
+    constrained; order of the list does not matter).
+    Five-phase scenario walks through:
+      warmup -> edge_baseline -> cpu_storm_on_edge -> io_storm_on_edge -> recovery.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+
+  # Library: each entry is a multi-axis partial cap profile.
+  stressors:
+    edge_device:
+      cpu:    { max_cores: 0.5 }
+      memory: { max_mb: 1024 }
+      io:     { read_bps: 50000000 }    # 50 MB/s
+    cpu_storm:
+      cpu:    { max_cores: 0.05 }       # tighter than edge_device's 0.5
+    io_storm:
+      io:     { read_bps: 1000000 }     # 1 MB/s, tighter than edge_device's 50 MB/s
+
+  # One scenario, five phases. Effective caps after merge are documented
+  # in the comment above each phase.
+  scenarios:
+    - name: edge_then_storms
+      enabled: true
+      phases:
+        # No stressors, no controls -> all caps cleared.
+        - name: warmup
+          duration_s: 2
+
+        # Effective caps: cpu=0.5, memory=1024 MB, io.read_bps=50 MB/s
+        - name: edge_baseline
+          duration_s: 15
+          stressors: [edge_device]
+
+        # Effective caps (tighter-wins):
+        #   cpu = min(0.5, 0.05) = 0.05  (cpu_storm tighter)
+        #   memory = 1024 MB             (only edge_device set it)
+        #   io.read_bps = 50 MB/s        (only edge_device set it)
+        - name: cpu_storm_on_edge
+          duration_s: 15
+          stressors: [edge_device, cpu_storm]
+
+        # Effective caps:
+        #   cpu = 0.5                    (only edge_device set it)
+        #   memory = 1024 MB             (only edge_device set it)
+        #   io.read_bps = min(50M, 1M) = 1 MB/s  (io_storm tighter)
+        - name: io_storm_on_edge
+          duration_s: 15
+          stressors: [edge_device, io_storm]
+
+        # No stressors, no controls -> release().
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from slamadverseriallab.datasets.associations import (
+from slamadversariallab.datasets.associations import (
     generate_tum_association_with_associate_py,
     resolve_tum_association_for_orbslam3,
 )
@@ -51,7 +51,7 @@ def test_orbslam3_associate_py_generation_writes_stdout_verbatim(
         captured["timeout"] = timeout
         return _Result()
 
-    monkeypatch.setattr("slamadverseriallab.datasets.associations.subprocess.run", _fake_run)
+    monkeypatch.setattr("slamadversariallab.datasets.associations.subprocess.run", _fake_run)
 
     assoc_path = generate_tum_association_with_associate_py(
         dataset_path=tmp_path,

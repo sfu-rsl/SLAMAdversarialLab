@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from slamadverseriallab.algorithms.mast3rslam import MASt3RSLAMAlgorithm
-from slamadverseriallab.algorithms.types import SLAMRunRequest, SensorMode
+from slamadversariallab.algorithms.mast3rslam import MASt3RSLAMAlgorithm
+from slamadversariallab.algorithms.types import SLAMRunRequest, SensorMode
 
 
 class _DummyProcess:

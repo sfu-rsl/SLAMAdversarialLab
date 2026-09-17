@@ -1,0 +1,62 @@
+experiment:
+  name: runtime_stress_euroc_deadline_cpu_compare
+  description: >-
+    Real-time deadline + CPU comparison: ORB-SLAM3 (stereo-inertial, CPU) vs
+    Nitro-SLAM (stereo-inertial, GPU) on EuRoC V1_01_easy. A 20 FPS (EuRoC native)
+    real-time deadline is imposed (frames whose wall-clock deadline passes because
+    tracking was too slow are dropped in the frame loop), crossed with a CPU
+    sweep. Unlike the offline comparison (where CPU stress only stretched wall
+    time), here CPU starvation forces frame DROPS -> accuracy degrades. Run BOTH:
+      python -m src.cli evaluate <this> --slam orbslam3i nitroslam --mode runtime-stress
+    Hypothesis: as cores shrink, ORB-SLAM3 (CPU-bound) drops far more frames than
+    Nitro (GPU-offloaded), so its APE degrades while Nitro's holds.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: fps20_uncapped
+      enabled: true
+      realtime: {target_fps: 20, warmup_frames: 30, queue_size: 2, drop_policy: drop_oldest}
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 300}
+    - name: fps20_cpu2
+      enabled: true
+      realtime: {target_fps: 20, warmup_frames: 30, queue_size: 2, drop_policy: drop_oldest}
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 300, controls: {cpu: {max_cores: 2.0}}}
+    - name: fps20_cpu1
+      enabled: true
+      realtime: {target_fps: 20, warmup_frames: 30, queue_size: 2, drop_policy: drop_oldest}
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 300, controls: {cpu: {max_cores: 1.0}}}
+    - name: fps20_cpu0p5
+      enabled: true
+      realtime: {target_fps: 20, warmup_frames: 30, queue_size: 2, drop_policy: drop_oldest}
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 300, controls: {cpu: {max_cores: 0.5}}}
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

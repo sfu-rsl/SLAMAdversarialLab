@@ -6,11 +6,11 @@ import cv2
 import numpy as np
 import pytest
 
-from slamadverseriallab.config.schema import DatasetConfig
-from slamadverseriallab.datasets.euroc import EuRoCDataset
-from slamadverseriallab.datasets.kitti import KittiDataset
-from slamadverseriallab.datasets.seven_scenes import SevenScenesDataset
-from slamadverseriallab.datasets.tum import TUMDataset
+from slamadversariallab.config.schema import DatasetConfig
+from slamadversariallab.datasets.euroc import EuRoCDataset
+from slamadversariallab.datasets.kitti import KittiDataset
+from slamadversariallab.datasets.seven_scenes import SevenScenesDataset
+from slamadversariallab.datasets.tum import TUMDataset
 
 
 def _write_dummy_png(path: Path) -> None:

@@ -5,15 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from slamadverseriallab.cli import create_parser
-from slamadverseriallab.config.parser import Config
-from slamadverseriallab.config.schema import (
+from slamadversariallab.cli import create_parser
+from slamadversariallab.config.parser import Config
+from slamadversariallab.config.schema import (
     DatasetConfig,
     ExperimentConfig,
     OutputConfig,
     PerturbationConfig,
 )
-from slamadverseriallab.pipelines.vo_evaluation import VOEvaluationPipeline
+from slamadversariallab.pipelines.vo_evaluation import VOEvaluationPipeline
 
 
 class _DatasetStub:
@@ -107,8 +107,8 @@ def test_vo_evaluation_requires_dataset_sequence(tmp_path: Path, monkeypatch) ->
         create_calls["count"] += 1
         return _DatasetStub(Path(config.dataset.path))
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.vo_evaluation.load_config", lambda _p: config)
-    monkeypatch.setattr("slamadverseriallab.datasets.create_dataset", _fake_create_dataset)
+    monkeypatch.setattr("slamadversariallab.pipelines.vo_evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.datasets.create_dataset", _fake_create_dataset)
 
     with pytest.raises(ValueError, match="dataset.sequence is required for VO evaluation runs"):
         VOEvaluationPipeline(
@@ -124,9 +124,9 @@ def test_vo_evaluation_uses_config_sequence_not_dataset_path_name(tmp_path: Path
     config = _make_config(tmp_path, sequence="04")
     config_path = _make_config_file(tmp_path)
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.vo_evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.vo_evaluation.load_config", lambda _p: config)
     monkeypatch.setattr(
-        "slamadverseriallab.datasets.create_dataset",
+        "slamadversariallab.datasets.create_dataset",
         lambda _cfg: _DatasetStub(Path(config.dataset.path)),
     )
 
@@ -145,9 +145,9 @@ def test_vo_discovery_for_tum_uses_canonical_left_output_dir(tmp_path: Path, mon
     config.dataset.type = "tum"
     config_path = _make_config_file(tmp_path)
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.vo_evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.vo_evaluation.load_config", lambda _p: config)
     monkeypatch.setattr(
-        "slamadverseriallab.datasets.create_dataset",
+        "slamadversariallab.datasets.create_dataset",
         lambda _cfg: _DatasetStub(Path(config.dataset.path)),
     )
 
@@ -171,9 +171,9 @@ def test_vo_discovery_ignores_metadata_only_module_directories(tmp_path: Path, m
     config = _make_config(tmp_path, sequence="04")
     config_path = _make_config_file(tmp_path)
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.vo_evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.vo_evaluation.load_config", lambda _p: config)
     monkeypatch.setattr(
-        "slamadverseriallab.datasets.create_dataset",
+        "slamadversariallab.datasets.create_dataset",
         lambda _cfg: _DatasetStub(Path(config.dataset.path)),
     )
 
@@ -201,9 +201,9 @@ def test_vo_evaluation_rejects_non_positive_num_runs(tmp_path: Path, monkeypatch
     config = _make_config(tmp_path, sequence="04")
     config_path = _make_config_file(tmp_path)
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.vo_evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.vo_evaluation.load_config", lambda _p: config)
     monkeypatch.setattr(
-        "slamadverseriallab.datasets.create_dataset",
+        "slamadversariallab.datasets.create_dataset",
         lambda _cfg: _DatasetStub(Path(config.dataset.path)),
     )
 
@@ -223,9 +223,9 @@ def test_vo_evaluation_runs_multi_run_outputs_and_aggregates(tmp_path: Path, mon
     ]
     config_path = _make_config_file(tmp_path)
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.vo_evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.vo_evaluation.load_config", lambda _p: config)
     monkeypatch.setattr(
-        "slamadverseriallab.datasets.create_dataset",
+        "slamadversariallab.datasets.create_dataset",
         lambda _cfg: _DatasetStub(Path(config.dataset.path)),
     )
 
@@ -302,9 +302,9 @@ def test_vo_comparison_only_uses_existing_run_dirs_for_aggregation(tmp_path: Pat
     config.perturbations = []
     config_path = _make_config_file(tmp_path)
 
-    monkeypatch.setattr("slamadverseriallab.pipelines.vo_evaluation.load_config", lambda _p: config)
+    monkeypatch.setattr("slamadversariallab.pipelines.vo_evaluation.load_config", lambda _p: config)
     monkeypatch.setattr(
-        "slamadverseriallab.datasets.create_dataset",
+        "slamadversariallab.datasets.create_dataset",
         lambda _cfg: _DatasetStub(Path(config.dataset.path)),
     )
 

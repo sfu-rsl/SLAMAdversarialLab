@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from slamadverseriallab.depth.providers import (
+from slamadversariallab.depth.providers import (
     DepthProviderNotApplicable,
     ProviderResult,
 )
-from slamadverseriallab.depth.resolver import DepthBackendResolver
+from slamadversariallab.depth.resolver import DepthBackendResolver
 
 
 def test_default_resolver_provider_order_is_da3_chain() -> None:

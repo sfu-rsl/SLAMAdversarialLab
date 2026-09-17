@@ -1,0 +1,58 @@
+experiment:
+  name: runtime_stress_tum_desk_droidslam_hami_phased_podman
+  description: >-
+    Demonstrates HAMi GPU cap MUTATION across phases for DROID-SLAM. The
+    container launches with the first non-None phase's cap as the env-var
+    seed; GpuHamiController.apply() then writes a new uint64 to limit[0]
+    in the bind-mounted cache file at every phase boundary, and HAMi reads
+    the new value on the next cuMemAlloc.
+
+    Three phases, all caps loose enough that DROID-SLAM completes the run
+    and produces a trajectory:
+      - phase1_loose:           16 GB cap (way above ~6-8 GB working set)
+      - phase2_above_working:    8 GB cap (still loose)
+      - phase3_drop:             no cap   (apply() writes 0)
+
+    Compare to the smoke config: this one verifies the runtime-mutation
+    pipeline observably changes the cap mid-run, while the trajectory still
+    matches baseline.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: gpu_phased_survives_mutations
+      enabled: true
+      phases:
+        - name: phase1_loose
+          duration_s: 4
+          controls:
+            gpu:
+              vram_limit_mb: 16384   # 16 GB
+        - name: phase2_above_working
+          duration_s: 4
+          controls:
+            gpu:
+              vram_limit_mb: 8192    # 8 GB
+        - name: phase3_drop
+          duration_s: 60
+          # No gpu controls -> apply() writes 0 to limit[0] (cap dropped)
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

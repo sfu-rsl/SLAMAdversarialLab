@@ -3,14 +3,14 @@
 from pathlib import Path
 from typing import List, Tuple
 
-from slamadverseriallab.config.parser import Config
-from slamadverseriallab.config.schema import (
+from slamadversariallab.config.parser import Config
+from slamadversariallab.config.schema import (
     DatasetConfig,
     ExperimentConfig,
     OutputConfig,
     PerturbationConfig,
 )
-from slamadverseriallab.core.pipeline import Pipeline
+from slamadversariallab.core.pipeline import Pipeline
 
 
 class _SetupDatasetStub:
@@ -93,7 +93,7 @@ def test_load_modules_uses_dataset_object_path_not_config_path(tmp_path, monkeyp
     pipeline.dataset = dataset_stub
 
     monkeypatch.setattr(
-        "slamadverseriallab.core.pipeline.create_module",
+        "slamadversariallab.core.pipeline.create_module",
         lambda _pert_config: capture_module,
     )
 

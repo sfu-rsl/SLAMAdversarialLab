@@ -9,8 +9,8 @@ import cv2
 import numpy as np
 import pytest
 
-from slamadverseriallab.datasets.base import CameraIntrinsics
-from slamadverseriallab.depth.da3_metric_action import DA3MetricAction
+from slamadversariallab.datasets.base import CameraIntrinsics
+from slamadversariallab.depth.da3_metric_action import DA3MetricAction
 
 
 class _FakeDA3Model:

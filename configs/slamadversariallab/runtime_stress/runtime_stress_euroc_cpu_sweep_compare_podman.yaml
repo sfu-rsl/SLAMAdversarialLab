@@ -1,0 +1,57 @@
+experiment:
+  name: runtime_stress_euroc_cpu_sweep_compare
+  description: >-
+    CPU sweep comparison: ORB-SLAM3 (stereo-inertial, CPU) vs Nitro-SLAM
+    (stereo-inertial, GPU-accelerated) on EuRoC V1_01_easy, same dataset/sequence/
+    frames and same sensor mode (stereo + IMU). Caps the container to 4/2/1/0.5
+    cores (cgroup v2 cpu.max). Run BOTH algorithms against this one config:
+      python -m src.cli evaluate <this> --slam orbslam3i nitroslam --mode runtime-stress
+    Results land side-by-side under slam_results/{orbslam3i,nitroslam}/. Hypothesis:
+    ORB-SLAM3 (all work multi-threaded on CPU) degrades steeply as cores shrink,
+    while Nitro (~0.7 CPU core, work offloaded to GPU) stays flat.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: cpu_4core
+      enabled: true
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 600, controls: {cpu: {max_cores: 4.0}}}
+    - name: cpu_2core
+      enabled: true
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 600, controls: {cpu: {max_cores: 2.0}}}
+    - name: cpu_1core
+      enabled: true
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 600, controls: {cpu: {max_cores: 1.0}}}
+    - name: cpu_0p5core
+      enabled: true
+      phases:
+        - {name: warmup, duration_s: 2}
+        - {name: stress, duration_s: 600, controls: {cpu: {max_cores: 0.5}}}
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false
