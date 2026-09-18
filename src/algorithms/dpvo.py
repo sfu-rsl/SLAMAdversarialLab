@@ -200,7 +200,7 @@ class DPVOAlgorithm(SLAMAlgorithm):
 
         # Override the container's snapshot of the frame-loop file with the
         # host's current copy so SAL deadline hooks reach the SLAM without an
-        # image rebuild. DPVO's frame loop lives in dpvo/stream.py (the
+        # image rebuild. DPVO's frame loop is in dpvo/stream.py (the
         # image_stream producer process), not demo.py. Works because the
         # image installs DPVO editable (pip install -e .), so imports resolve
         # to /dpvo/dpvo/stream.py.

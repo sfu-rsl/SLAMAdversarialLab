@@ -2,7 +2,7 @@
 
 These exercise the framework-level helper directly. The DROID-SLAM
 trajectory-conversion code uses it under the hood; tests against the
-DROID wrapper itself live in test_droidslam_deadline_remap.py.
+DROID wrapper itself are in test_droidslam_deadline_remap.py.
 """
 
 from __future__ import annotations

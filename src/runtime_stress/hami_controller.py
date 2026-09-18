@@ -218,7 +218,7 @@ class GpuHamiController(ResourceController):
     """GPU isolation controller backed by HAMi-core's LD_PRELOAD shim.
 
     HAMi seeds its caps from env vars at process init, but the live cap
-    state lives in a writable mmap-backed shared region. This controller
+    state is held in a writable mmap-backed shared region. This controller
     mutates that region directly at phase boundaries, so per-phase GPU
     caps are honored even though HAMi never re-reads its env vars.
 

@@ -2,7 +2,7 @@
 
 cuVSLAM ships a prebuilt ``libcuvslam.so`` plus nanobind Python bindings, not a
 runnable pipeline: the library has no frame loop and no trajectory writer, so
-the caller owns both. Our loop lives in ``sal_driver.py`` next to the image
+the caller owns both. Our loop is in ``sal_driver.py``, next to the image
 build context, which is what makes this wrapper straightforward rather than
 awkward -- the driver is an ordinary Python file, so the deadline harness can be
 bind-mounted over it exactly as for DPVO. A SLAM whose loop is compiled into the

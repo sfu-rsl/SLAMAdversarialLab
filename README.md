@@ -394,7 +394,7 @@ datasets/kitti/sequences/<NN>/image_3/     # right colour
 datasets/kitti/poses/<NN>.txt              # ground truth
 ```
 
-Datasets live outside the repository history, under `./datasets/`.
+Datasets sit outside the repository history, under `./datasets/`.
 
 Example dataset config:
 
@@ -412,7 +412,7 @@ dataset:
 Experiment configs are plain YAML files with four main sections:
 
 - `experiment`: metadata such as the run name and seed
-- `dataset`: which dataset adapter to use and where the data lives
+- `dataset`: which dataset adapter to use and where the data sits
 - `perturbations`: the ordered list of modules to apply
 - `output`: where generated artifacts should be written
 
@@ -559,7 +559,7 @@ consumption on the y (CPU in cores, memory and VRAM in GB, GPU utilisation in
 percent), with the phases shaded so an applied cap or antagonist is visible
 rather than inferred.
 
-The experiment record and per-system results live with the
+The experiment record and per-system results are in the
 [paper](https://arxiv.org/abs/2609.19533) rather than in this repository.
 
 ### Evaluate Feature-Extractor VO with PySLAM

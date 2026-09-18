@@ -251,14 +251,14 @@ class MASt3RSLAMAlgorithm(SLAMAlgorithm):
         torch_hub_cache.mkdir(parents=True, exist_ok=True)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Checkpoints (2.9 GB) live in the host repo at
+        # Checkpoints (2.9 GB) are in the host repo at
         # deps/slam-algorithms/MASt3R-SLAM/checkpoints. The Dockerfile
         # intentionally does NOT COPY them; bind-mount read-only at runtime.
         host_checkpoints = self.mast3r_path / "checkpoints"
 
         # MASt3R-SLAM reads ``config/<name>.yaml`` relative to the working
         # dir. Map the host's resolved config file into the container's
-        # config tree by relative path under mast3r_path. If the file lives
+        # config tree by relative path under mast3r_path. If the file sits
         # outside mast3r_path (external config), fall back to bind-mounting
         # the file's absolute host path.
         host_config = config_file.resolve()
