@@ -5,9 +5,9 @@ from typing import List, Tuple
 
 import pytest
 
-from slamadverseriallab.config.parser import Config
-from slamadverseriallab.config.schema import DatasetConfig, ExperimentConfig, OutputConfig
-from slamadverseriallab.core.pipeline import Pipeline
+from slamadversariallab.config.parser import Config
+from slamadversariallab.config.schema import DatasetConfig, ExperimentConfig, OutputConfig
+from slamadversariallab.core.pipeline import Pipeline
 
 
 class _DatasetWithDestMetadata:

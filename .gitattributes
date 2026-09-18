@@ -2,3 +2,63 @@
 *.zip filter=lfs diff=lfs merge=lfs -text
 *.tar.gz filter=lfs diff=lfs merge=lfs -text
 *.gz filter=lfs diff=lfs merge=lfs -text
+
+# Never part of a public release. `git archive` drops these, so the published
+# tree is produced rather than remembered. They stay in this repository, which
+# is private and is the working record.
+#
+# docs/ goes WHOLESALE. An earlier pass excluded only the internal process docs
+# and kept the framework manual, on the argument that a reader needs it. That was
+# superseded: the README now carries the setup and the findings itself, so the
+# public repository needs no docs/ tree at all. This is also where the weight
+# was -- 195 MB of showcase site and PDF against 1.3 MB of documentation.
+docs/ export-ignore
+runtime_stress_orbslam3_handoff.md export-ignore
+
+# tools/ is this project's RESEARCH APPARATUS, not a feature of the framework.
+# 59 of its 62 files name one of our own experiments (E1 to E7, C2, C16), one of
+# our campaigns, or the paper, and they operate on a results/ tree that exists
+# only where those campaigns were run. A public user has none of that, and the
+# framework itself is reached through `python -m slamadversariallab`, which does
+# not touch tools/ at all -- verified: nothing under src/ imports it.
+#
+# tests/tools/ goes with it. Those 13 files cover tools/ and cannot even be
+# COLLECTED without it, so shipping one without the other breaks the suite in
+# every public checkout.
+tools/ export-ignore
+tests/tools/ export-ignore
+
+# CI stays in the working repository for now, by decision. The workflow builds
+# ORB-SLAM3 from source on every push (~40 minutes of Actions minutes) and
+# surfaces a standing warning for the EuRoC host outage, which is fine here and
+# conspicuous on a public repository. To publish it later, delete this line.
+.github/ export-ignore
+
+# Campaign artifacts, by the same rule as tools/: these are the OUTPUT of the
+# generators in tools/, named for this project's own conditions and experiments
+# (C1 to C16, E1 to E7). A public user has neither the generators nor the
+# results/ tree they were run against, so they are 355 files of provenance
+# rather than examples.
+#
+# EXCLUDED FROM THE ARCHIVE, NOT MOVED. tools/report/campaigns.py resolves a
+# campaign name to configs/<experiment>/<name>.yaml, the generators write there,
+# and run_campaign.sh finds configs with `find -maxdepth 2`. Relocating these in
+# the working tree would break all three; excluding them from the published
+# archive breaks nothing.
+#
+# What still ships is the example material: the per-system stressor demos
+# (runtime_stress_<dataset>_<system>_<axis>), the deadline-harness demos, the
+# per-system smokes, and every perturbation config under experiments/, other/
+# and regression/.
+configs/slamadversariallab/runtime_stress/e1/ export-ignore
+configs/slamadversariallab/runtime_stress/e2/ export-ignore
+configs/slamadversariallab/runtime_stress/e3/ export-ignore
+configs/slamadversariallab/runtime_stress/e4/ export-ignore
+configs/slamadversariallab/runtime_stress/e6/ export-ignore
+configs/slamadversariallab/runtime_stress/e7/ export-ignore
+configs/slamadversariallab/runtime_stress/camp_*.yaml export-ignore
+configs/slamadversariallab/runtime_stress/seq_*.yaml export-ignore
+configs/slamadversariallab/runtime_stress/chart_*.yaml export-ignore
+configs/slamadversariallab/runtime_stress/_breaking_point_*.yaml export-ignore
+configs/slamadversariallab/runtime_stress/e2e_*.yaml export-ignore
+configs/slamadversariallab/runtime_stress/smoke_handoff_*.yaml export-ignore

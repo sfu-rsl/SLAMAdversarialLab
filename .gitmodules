@@ -44,3 +44,12 @@
 [submodule "deps/depth-estimation/FoundationStereo"]
 	path = deps/depth-estimation/FoundationStereo
 	url = https://github.com/mohhef/FoundationStereo.git
+[submodule "deps/slam-algorithms/DPVO"]
+	path = deps/slam-algorithms/DPVO
+	url = https://github.com/mohhef/DPVO.git
+[submodule "deps/slam-algorithms/cuVSLAM"]
+	path = deps/slam-algorithms/cuVSLAM
+	url = https://github.com/nvidia-isaac/cuVSLAM.git
+[submodule "deps/perception/sam3"]
+	path = deps/perception/sam3
+	url = https://github.com/facebookresearch/sam3.git

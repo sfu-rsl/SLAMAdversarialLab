@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import yaml
 
-from slamadverseriallab.cli import create_parser, list_modules_command
+from slamadversariallab.cli import create_parser, list_modules_command
 
 
 def test_list_modules_parser_accepts_yaml_format() -> None:

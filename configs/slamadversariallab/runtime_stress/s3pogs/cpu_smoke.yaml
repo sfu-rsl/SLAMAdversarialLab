@@ -1,0 +1,42 @@
+experiment:
+  name: runtime_stress_kitti_04_s3pogs_cpu_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on KITTI sequence 04 with S3PO-GS,
+    exercising the CPU stressor (cgroup v2 cpu.max via PodmanCpuController).
+    S3PO-GS is GPU-bound (MASt3R foundation model + per-keyframe Gaussian
+    splatting), so a half-core cap mostly affects the dataloader and the
+    Python `mp.Process` worker glue. Verifies the CPU control applies
+    cleanly inside the podman container and the SLAM tolerates the cap.
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 200
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: cpu_half_core
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 1800
+          controls:
+            cpu:
+              max_cores: 0.5
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

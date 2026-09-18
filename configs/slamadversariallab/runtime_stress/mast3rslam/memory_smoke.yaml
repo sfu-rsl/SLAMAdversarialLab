@@ -1,0 +1,44 @@
+experiment:
+  name: runtime_stress_tum_desk_mast3rslam_memory_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on TUM freiburg1_desk with MASt3R-SLAM,
+    exercising the memory stressor (cgroup v2 memory.max via
+    PodmanMemoryController). The 12 GB cap sits above MASt3R-SLAM's ~7.5 GB
+    host-RAM working set on an 80-frame run (ViT-Large encoder + per-keyframe
+    pointmaps held in host RAM), so the cap is applied to the live container's
+    cgroup but never forces an OOM; the SLAM completes and produces a
+    trajectory. Verifies the memory control plumbing end to end.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: mem_12gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            memory:
+              max_mb: 12288
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

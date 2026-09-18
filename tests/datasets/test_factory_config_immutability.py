@@ -6,9 +6,9 @@ from typing import Any, Dict, List
 import numpy as np
 import pytest
 
-from slamadverseriallab.config.schema import DatasetConfig
-from slamadverseriallab.datasets.base import Dataset
-from slamadverseriallab.datasets.factory import _registry, create_dataset
+from slamadversariallab.config.schema import DatasetConfig
+from slamadversariallab.datasets.base import Dataset
+from slamadversariallab.datasets.factory import _registry, create_dataset
 
 
 class _ResolvePathDataset(Dataset):

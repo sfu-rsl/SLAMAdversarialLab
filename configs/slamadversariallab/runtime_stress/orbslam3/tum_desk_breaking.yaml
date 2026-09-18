@@ -1,0 +1,50 @@
+experiment:
+  name: runtime_stress_tum_desk_orbslam3_breaking
+  description: "Full-run low-CPU runtime-stress sweep on TUM freiburg1_desk with ORB-SLAM3"
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 40
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: cpu_fiftieth_core_fullrun
+      enabled: true
+      phases:
+        - name: stress
+          duration_s: 600
+          controls:
+            cpu:
+              max_cores: 0.02
+    - name: cpu_hundredth_core_fullrun
+      enabled: true
+      phases:
+        - name: stress
+          duration_s: 600
+          controls:
+            cpu:
+              max_cores: 0.01
+    - name: cpu_twohundredth_core_fullrun
+      enabled: true
+      phases:
+        - name: stress
+          duration_s: 600
+          controls:
+            cpu:
+              max_cores: 0.005
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

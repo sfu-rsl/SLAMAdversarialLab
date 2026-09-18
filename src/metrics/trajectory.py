@@ -23,16 +23,22 @@ from ..utils import get_logger
 logger = get_logger(__name__)
 
 
-def _get_max_diff_for_trajectory(traj: PoseTrajectory3D, base_max_diff: float = 10.0) -> float:
+def _get_max_diff_for_trajectory(traj: PoseTrajectory3D, base_max_diff: float = 0.5) -> float:
     """
     Get appropriate max_diff for timestamp association based on timestamp scale.
 
     EuRoC uses nanosecond timestamps (~1e18), while TUM/KITTI use seconds (~1e9).
     We detect the scale from the first timestamp and adjust max_diff accordingly.
 
+    The base tolerance is 0.5 s (a few frame periods across TUM/EuRoC/KITTI).
+    Our SLAM outputs derive timestamps directly from the dataset, so a correct
+    trajectory associates exactly; a loose multi-second tolerance would instead
+    SILENTLY match a pose to a GT sample seconds away, masking a timestamp/remap
+    bug (see _check_association_coverage). Tight + coverage-checked = fail loud.
+
     Args:
         traj: Trajectory to check timestamp scale
-        base_max_diff: Base max_diff in seconds (default 10s)
+        base_max_diff: Base max_diff in seconds (default 0.5s)
 
     Returns:
         Appropriate max_diff for the trajectory's timestamp scale
@@ -51,6 +57,152 @@ def _get_max_diff_for_trajectory(traj: PoseTrajectory3D, base_max_diff: float = 
     else:
         # Second timestamps
         return base_max_diff
+
+
+def _check_association_coverage(traj_est, associated_est, name: str,
+                                threshold: float = 0.85) -> None:
+    """Warn loudly when far fewer poses associate to ground truth than the
+    trajectory actually has.
+
+    With the tight association tolerance, a correctly-timestamped trajectory
+    matches nearly all of its own poses to GT (edge/gap poses aside). A large
+    shortfall almost always means a timestamp or remap mismatch, in which case
+    the ATE is computed on a mis-associated subset -- a silent wrong number.
+    Surface it rather than hide it behind a loose tolerance.
+    """
+    n_est = getattr(traj_est, "num_poses", 0)
+    n_assoc = getattr(associated_est, "num_poses", 0)
+    if n_est > 0 and (n_assoc / n_est) < threshold:
+        logger.warning(
+            "  ASSOCIATION COVERAGE LOW for %s: only %d of %d estimated poses "
+            "matched ground truth within tolerance (%.0f%%). This usually means "
+            "a timestamp/remap mismatch, not tracking loss; the ATE/RPE that "
+            "follows is scored on a mis-associated subset. Investigate.",
+            name, n_assoc, n_est, 100.0 * n_assoc / n_est,
+        )
+
+
+def _provenance(traj_est, traj_est_sync, scale: float, correct_scale: bool) -> dict:
+    """The inputs that produced a metric, recorded beside the metric itself.
+
+    An ape.json holding only rmse/mean/median/std/min/max cannot be audited. A
+    run aligned at scale 0.247, whose trajectory was 4x too small and got resized
+    to fit, writes a file indistinguishable from one aligned at 1.00 and reports
+    an error that reads as healthy. A run scored over 4 associated poses writes
+    the same shape of file as one scored over 1385.
+
+    None of that is recoverable later, because the alignment scale is computed,
+    logged at debug, and discarded. So these fields are not diagnostics anyone
+    reads routinely. They are what makes a wrong number distinguishable from a
+    right one after the fact.
+
+    ``correct_scale`` is recorded rather than assumed because it is a
+    methodological choice, currently Sim(3) for every system regardless of
+    whether that system can observe scale. Writing it down means a future reader
+    knows which convention produced the number instead of inferring it from the
+    code as it stands then.
+    """
+    n_est = getattr(traj_est, "num_poses", 0) or 0
+    n_used = getattr(traj_est_sync, "num_poses", 0) or 0
+    return {
+        "n_poses": n_used,
+        "n_poses_estimated": n_est,
+        "association_coverage": round(n_used / n_est, 6) if n_est else None,
+        "scale": round(float(scale), 6),
+        "correct_scale": bool(correct_scale),
+    }
+
+
+# Delta per dataset, in metres. A delta must be short enough that the sequence
+# contains many of them and long enough to exceed pose noise, so it scales with
+# how far the camera actually travels: TUM freiburg1_desk covers a few metres of
+# desk, EuRoC V1_01 a room, KITTI a street.
+_RPE_METRE_DELTA = {"tum": 0.1, "euroc": 1.0, "kitti": 5.0}
+_RPE_METRE_DEFAULT = 1.0
+
+
+def _rpe_delta_metres(name: str) -> float:
+    """Pick the metre delta from the trajectory/dataset name, defaulting safely."""
+    low = (name or "").lower()
+    for key, val in _RPE_METRE_DELTA.items():
+        if key in low:
+            return val
+    return _RPE_METRE_DEFAULT
+
+
+def _rpe_per_metre(traj_ref_sync, traj_est_aligned, name: str) -> dict:
+    """RPE with the delta in METRES rather than trajectory entries.
+
+    Returns keys prefixed `rpe_m_`, or a `rpe_m_error` explaining why not. Never
+    raises: this is a companion measurement and must not take down the reported
+    RPE if the trajectory cannot support it.
+
+    A trajectory too short to contain one delta produces an error rather than a
+    number. That is the intended behaviour -- it is the case where a collapsed
+    run would otherwise be scored, and a refusal is more honest than a value
+    computed over a route the system never travelled.
+    """
+    delta = _rpe_delta_metres(name)
+    try:
+        metric = evo_metrics.RPE(
+            evo_metrics.PoseRelation.translation_part,
+            delta=delta,
+            delta_unit=evo_metrics.Unit.meters,
+            all_pairs=False,
+        )
+        metric.process_data((traj_ref_sync, traj_est_aligned))
+        stats = metric.get_all_statistics()
+        return {
+            "rpe_m_rmse": stats.get("rmse"),
+            "rpe_m_mean": stats.get("mean"),
+            "rpe_m_std": stats.get("std"),
+            "rpe_m_delta": delta,
+            "rpe_m_delta_unit": "meters",
+        }
+    except Exception as exc:
+        return {
+            "rpe_m_rmse": None,
+            "rpe_m_delta": delta,
+            "rpe_m_delta_unit": "meters",
+            "rpe_m_error": str(exc)[:200],
+        }
+
+
+def _se3_companion(traj_ref_sync, traj_est_sync, metric_factory, name: str) -> dict:
+    """The same error, aligned WITHOUT the scale degree of freedom.
+
+    The reported metric aligns with Sim(3), which lets the estimate be resized to
+    best fit ground truth before measuring. That is correct for monocular, where
+    scale is genuinely unobservable. It is NOT correct for a stereo or inertial
+    system, which can observe scale, and for those the resize absorbs real error
+    rather than measuring it.
+
+    Rather than change the reported number, the honest one is computed alongside
+    it. The resize is a free parameter fitted to minimise error, so ``rmse_se3``
+    is always greater than or equal to ``rmse``, and a large gap between them
+    means the scale was wrong and got hidden. That gap is the signal, and it is
+    cheaper to store than to re-derive later.
+
+    ONLY MEANINGFUL FOR METRIC-SCALE SENSORS. For a monocular system a large
+    ``rmse_se3`` says nothing except that scale was unobservable, which was
+    already known. The metrics layer cannot tell the two apart, so it records the
+    number and leaves the interpretation to whoever knows the sensor.
+
+    A failure here must not take the reported metric down with it. Degenerate
+    trajectories that align under Sim(3) can fail under SE(3), so the reason is
+    recorded rather than swallowed.
+    """
+    out = {"rmse_se3": None, "se3_error": None}
+    try:
+        est_se3 = copy.deepcopy(traj_est_sync)
+        est_se3.align(traj_ref_sync, correct_scale=False)
+        m = metric_factory()
+        m.process_data((traj_ref_sync, est_se3))
+        out["rmse_se3"] = m.get_all_statistics().get("rmse", None)
+    except Exception as exc:
+        out["se3_error"] = type(exc).__name__
+        logger.debug("  SE(3) companion failed for %s: %s", name, exc)
+    return out
 
 
 # Paper-mode severity colors (consistent across all experiments)
@@ -607,7 +759,11 @@ class MetricsEvaluator:
         output_dir: Path,
         dataset_type: str = "tum",
         max_frames: Optional[int] = None,
-        timestamps_path: Optional[Path] = None
+        timestamps_path: Optional[Path] = None,
+        deadline_cutoff_ts: Optional[float] = None,
+        deadline_warmup_frames: int = 0,
+        deadline_stride: int = 1,
+        min_post_warmup_poses: int = 5,
     ):
         """
         Initialize metrics evaluator.
@@ -619,12 +775,33 @@ class MetricsEvaluator:
             timestamps_path: Path to timestamps file (for KITTI to TUM conversion).
                              If None and dataset_type is 'kitti', will try to find
                              timestamps based on ground truth path structure.
+            deadline_cutoff_ts: When set (deadline conditions), poses with a
+                             timestamp before this value (the warmup prefix) are
+                             excluded from every metric, for stressed runs and
+                             baselines alike. Warmup frames are delivered
+                             unstressed by design, so scoring them would let a
+                             collapsed run look accurate.
+            deadline_warmup_frames: Number of warmup frames, used to shrink the
+                             completeness denominator to the post-warmup count.
+            deadline_stride: Frames the SLAM processes per dataset frame. The
+                             completeness denominator is the number of SAMPLED
+                             frames the SLAM was meant to produce post-warmup,
+                             i.e. (max_frames // stride) - warmup, so a stride-2
+                             SLAM (DROID/DPVO on TUM) is not scored against a
+                             raw-frame count twice its actual budget.
+            min_post_warmup_poses: Below this many surviving post-warmup poses,
+                             APE/RPE are recorded as unscored (no trajectory)
+                             instead of a number computed on a fragment.
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.dataset_type = dataset_type
         self.max_frames = max_frames
         self.timestamps_path = timestamps_path
+        self.deadline_cutoff_ts = deadline_cutoff_ts
+        self.deadline_warmup_frames = deadline_warmup_frames
+        self.deadline_stride = max(1, int(deadline_stride))
+        self.min_post_warmup_poses = min_post_warmup_poses
 
     def _get_perturbation_dir(self, run_id: int, perturbation_name: str) -> Path:
         """Get or create directory for a perturbation's metrics.
@@ -748,7 +925,38 @@ class MetricsEvaluator:
             )
             gt_to_use_for_format = converted_gt_path
 
-        tracking_info = self._check_tracking_completeness(traj_to_use, gt_to_use_for_format, trajectory_name)
+        # Deadline conditions: score only the post-warmup frames. The warmup
+        # prefix is delivered unstressed, so a run that survived nothing but
+        # warmup must score as "no trajectory", not as a good ATE.
+        postwarmup_traj_path = None
+        post_warmup_poses = None
+        expected_override = None
+        if self.deadline_cutoff_ts is not None and format_to_use != "kitti":
+            postwarmup_traj_path, post_warmup_poses = self._filter_post_warmup(
+                traj_to_use, trajectory_name
+            )
+            traj_to_use = postwarmup_traj_path
+            if self.max_frames:
+                # Post-warmup SAMPLED-frame budget: the SLAM produces at most
+                # (max_frames // stride) poses, minus the warmup prefix. Using
+                # the raw max_frames here would roughly double the denominator
+                # for a stride-2 SLAM (DROID/DPVO on TUM) and halve its
+                # reported completeness.
+                sampled_frames = self.max_frames // self.deadline_stride
+                expected_override = max(1, sampled_frames - self.deadline_warmup_frames)
+            logger.info(
+                f"  Post-warmup filter: {post_warmup_poses} poses remain "
+                f"(cutoff ts {self.deadline_cutoff_ts})"
+            )
+        elif self.deadline_cutoff_ts is not None:
+            logger.warning(
+                "  Post-warmup filter skipped: trajectory has no timestamps (kitti 12-col format)"
+            )
+
+        tracking_info = self._check_tracking_completeness(
+            traj_to_use, gt_to_use_for_format, trajectory_name,
+            expected_override=expected_override
+        )
 
         metrics = {
             'tracking_completeness': tracking_info['completeness_percent'],
@@ -756,6 +964,16 @@ class MetricsEvaluator:
             'total_poses': tracking_info['ground_truth_poses'],
             'tracking_lost': tracking_info['poses_lost']
         }
+        if post_warmup_poses is not None:
+            metrics['post_warmup_poses'] = post_warmup_poses
+
+        no_post_warmup_reason = None
+        if post_warmup_poses is not None and post_warmup_poses < self.min_post_warmup_poses:
+            no_post_warmup_reason = (
+                f"only {post_warmup_poses} post-warmup poses "
+                f"(minimum {self.min_post_warmup_poses}); warmup-only fragment"
+            )
+            logger.warning(f"  {trajectory_name}: unscored, {no_post_warmup_reason}")
 
         # TUM trajectories keep timestamps, while KITTI trajectories may require
         # ground-truth truncation when evaluating subsets or partial tracks.
@@ -789,29 +1007,35 @@ class MetricsEvaluator:
             logger.info(f"  Using timestamp-based matching (TUM format) - no truncation needed")
 
         try:
-            try:
-                ape_metrics = self._compute_ape(
-                    traj_to_use,
-                    gt_to_use,
-                    trajectory_name
-                )
-                metrics['ape'] = ape_metrics
-            except Exception as e:
-                logger.error(f"APE computation failed: {e}")
+            if no_post_warmup_reason is not None:
                 metrics['ape'] = None
-                metrics['ape_error'] = str(e)
-
-            try:
-                rpe_metrics = self._compute_rpe(
-                    traj_to_use,
-                    gt_to_use,
-                    trajectory_name
-                )
-                metrics['rpe'] = rpe_metrics
-            except Exception as e:
-                logger.error(f"RPE computation failed: {e}")
+                metrics['ape_error'] = no_post_warmup_reason
                 metrics['rpe'] = None
-                metrics['rpe_error'] = str(e)
+                metrics['rpe_error'] = no_post_warmup_reason
+            else:
+                try:
+                    ape_metrics = self._compute_ape(
+                        traj_to_use,
+                        gt_to_use,
+                        trajectory_name
+                    )
+                    metrics['ape'] = ape_metrics
+                except Exception as e:
+                    logger.error(f"APE computation failed: {e}")
+                    metrics['ape'] = None
+                    metrics['ape_error'] = str(e)
+
+                try:
+                    rpe_metrics = self._compute_rpe(
+                        traj_to_use,
+                        gt_to_use,
+                        trajectory_name
+                    )
+                    metrics['rpe'] = rpe_metrics
+                except Exception as e:
+                    logger.error(f"RPE computation failed: {e}")
+                    metrics['rpe'] = None
+                    metrics['rpe_error'] = str(e)
 
         finally:
             # Restore original dataset_type
@@ -827,6 +1051,9 @@ class MetricsEvaluator:
             if converted_traj_path and converted_traj_path.exists():
                 converted_traj_path.unlink()
                 logger.debug(f"  Cleaned up converted trajectory: {converted_traj_path}")
+            if postwarmup_traj_path and postwarmup_traj_path.exists():
+                postwarmup_traj_path.unlink()
+                logger.debug(f"  Cleaned up post-warmup trajectory: {postwarmup_traj_path}")
 
         logger.info(f"Metrics computed successfully for {trajectory_name}")
         return metrics
@@ -858,6 +1085,7 @@ class MetricsEvaluator:
         traj_ref_sync, traj_est_sync = evo_sync.associate_trajectories(
             traj_ref, traj_est, max_diff=max_diff
         )
+        _check_association_coverage(traj_est, traj_est_sync, name)
 
         logger.debug(f"  Synchronized {traj_est_sync.num_poses} poses (from {traj_est.num_poses} estimated, {traj_ref.num_poses} reference)")
 
@@ -877,6 +1105,12 @@ class MetricsEvaluator:
             'min': stats.get('min', None),
             'max': stats.get('max', None)
         }
+        metrics.update(_provenance(traj_est, traj_est_sync, s, True))
+        metrics.update(_se3_companion(
+            traj_ref_sync, traj_est_sync,
+            lambda: evo_metrics.APE(evo_metrics.PoseRelation.translation_part),
+            name,
+        ))
 
         json_path = perturbation_dir / "ape.json"
         with open(json_path, 'w') as f:
@@ -912,6 +1146,7 @@ class MetricsEvaluator:
         traj_ref_sync, traj_est_sync = evo_sync.associate_trajectories(
             traj_ref, traj_est, max_diff=max_diff
         )
+        _check_association_coverage(traj_est, traj_est_sync, name)
 
         logger.debug(f"  Synchronized {traj_est_sync.num_poses} poses for RPE")
 
@@ -933,9 +1168,16 @@ class MetricsEvaluator:
             logger.warning(f"  RPE with delta={delta} failed: {e}")
             logger.warning(f"  Trying with delta=1 for sparse trajectory...")
 
+            # The fallback CHANGES THE QUANTITY. RPE over 5-frame intervals and
+            # RPE over 1-frame intervals are different measurements, and a
+            # sparse trajectory is exactly the case where they diverge most.
+            # Until delta was recorded, both wrote the same shape of file and a
+            # fallback was visible only as a console warning, so two cells
+            # measured differently could be compared as if they were not.
+            delta = 1
             rpe_metric = evo_metrics.RPE(
                 evo_metrics.PoseRelation.translation_part,
-                delta=1,
+                delta=delta,
                 delta_unit=evo_metrics.Unit.frames,
                 all_pairs=False
             )
@@ -950,6 +1192,49 @@ class MetricsEvaluator:
             'min': stats.get('min', None),
             'max': stats.get('max', None)
         }
+        metrics.update(_provenance(traj_est, traj_est_sync, s, True))
+        metrics['delta'] = delta
+        metrics['delta_unit'] = 'frames'
+        # Same delta as the reported value, so the two are comparable.
+        metrics.update(_se3_companion(
+            traj_ref_sync, traj_est_sync,
+            lambda: evo_metrics.RPE(
+                evo_metrics.PoseRelation.translation_part,
+                delta=delta,
+                delta_unit=evo_metrics.Unit.frames,
+                all_pairs=False,
+            ),
+            name,
+        ))
+
+        # ---- RPE per METRE, the companion that survives frame drops ----
+        #
+        # The reported RPE above counts delta in ENTRIES OF THE TRAJECTORY FILE,
+        # not frames of video. When drops thin the file, five entries span far
+        # more real motion, so the same delta measures a longer baseline and
+        # accumulates more error. That is geometry, not tracking quality, and it
+        # makes frame-delta RPE unusable for comparing cells at different drop
+        # rates.
+        #
+        # Measured on an okvis2x cap ladder, where ATE says quality is unchanged:
+        #
+        #     poses   delta=5 spans   RPE(frames)   RPE(1 m)
+        #       499         0.25 s        0.0081      0.0807
+        #       200         0.63 s        0.0214      0.0803
+        #        97         1.26 s        0.0510      0.0847
+        #                                  6.3x         1.1x
+        #
+        # The frame-delta figure rises 6.3x purely because the measuring stick
+        # got 5x longer. Per metre it is flat, which is the truth.
+        #
+        # It stays SENSITIVE where quality genuinely differs: on dpvslam's
+        # bimodal 1-core cell (three runs, same span) it reads 0.217 / 0.042 /
+        # 0.045 against ATE 0.390 / 0.015 / 0.015, separating the bad run 5x.
+        #
+        # And it FAILS LOUD rather than flattering a wreck: a trajectory too
+        # short to contain the delta raises instead of scoring, where ATE
+        # returned 0.0672 for the same collapsed orbslam3i cell.
+        metrics.update(_rpe_per_metre(traj_ref_sync, traj_est_aligned, name))
 
         json_path = perturbation_dir / "rpe.json"
         with open(json_path, 'w') as f:
@@ -1083,11 +1368,62 @@ class MetricsEvaluator:
 
         return degradation
 
+    def _filter_post_warmup(
+        self,
+        trajectory_path: Path,
+        trajectory_name: str,
+    ) -> Tuple[Path, int]:
+        """Write a copy of the trajectory holding only post-warmup poses.
+
+        Keeps lines whose leading timestamp is >= ``deadline_cutoff_ts``.
+        The cutoff arrives in the dataset's native timebase; if the
+        trajectory uses a different magnitude (seconds vs nanoseconds), the
+        cutoff is rescaled by 1e9 to match before comparing.
+
+        Returns the temp file path and the number of poses kept.
+        """
+        lines = []
+        with open(trajectory_path, "r") as handle:
+            for raw in handle:
+                stripped = raw.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                lines.append(raw)
+
+        cutoff = float(self.deadline_cutoff_ts)
+        if lines:
+            try:
+                first_ts = float(lines[0].split()[0].rstrip(','))
+                if first_ts > 0 and cutoff > 0:
+                    ratio = cutoff / first_ts
+                    if ratio > 1e6:
+                        cutoff /= 1e9
+                    elif ratio < 1e-6:
+                        cutoff *= 1e9
+            except ValueError:
+                pass
+
+        kept = []
+        for raw in lines:
+            try:
+                ts = float(raw.split()[0].rstrip(','))
+            except ValueError:
+                continue
+            if ts >= cutoff:
+                kept.append(raw)
+
+        safe_name = trajectory_name.replace('/', '_')
+        temp_path = trajectory_path.parent / f".postwarmup_{safe_name}.txt"
+        with open(temp_path, "w") as handle:
+            handle.writelines(kept)
+        return temp_path, len(kept)
+
     def _check_tracking_completeness(
         self,
         trajectory_path: Path,
         ground_truth_path: Path,
-        trajectory_name: str
+        trajectory_name: str,
+        expected_override: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Check tracking completeness and report tracking loss.
@@ -1103,7 +1439,10 @@ class MetricsEvaluator:
         traj_len = count_valid_trajectory_poses(trajectory_path)
         gt_len = count_valid_trajectory_poses(ground_truth_path)
 
-        expected_gt_len = self.max_frames if self.max_frames else gt_len
+        if expected_override is not None:
+            expected_gt_len = expected_override
+        else:
+            expected_gt_len = self.max_frames if self.max_frames else gt_len
 
         poses_lost = max(0, expected_gt_len - traj_len)
         completeness_percent = (traj_len / expected_gt_len * 100) if expected_gt_len > 0 else 0

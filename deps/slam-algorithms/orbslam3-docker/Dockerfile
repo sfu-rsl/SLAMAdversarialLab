@@ -123,6 +123,47 @@ RUN mkdir -p /datasets /results
 ENV ORB_SLAM3_PATH=/orbslam3
 ENV LD_LIBRARY_PATH=/orbslam3/lib:${LD_LIBRARY_PATH}
 
+# NOTE (mtime trap): COPY preserves source mtimes, which can be OLDER than the
+# cached build products, making `make` skip the recompile and ship an UNPATCHED
+# binary that silently ignores SAL_DEADLINE_* (zero frame drops, scored as a
+# stressed run). The `touch` prevents it; the `strings` guard fails the build
+# loudly if it ever happens again.
+# === SAL real-time deadline support ===
+# Plumb the generic C++ deadline iterator into the monocular KITTI example so
+# frames whose wall-clock deadline passed (because tracking was too slow) get
+# dropped inside the real frame loop, the faithful analog of DROID-SLAM's
+# Python demo.py wiring. Appended last so every layer above (OpenCV, Pangolin,
+# the ORB-SLAM3 build) stays cached; only these layers rebuild when the patch
+# changes. deadline_iterator.h is the single source of truth from
+# src/runtime_stress/, staged into the build context by build.sh (so use
+# build.sh, not a raw `docker build`). Recompiles ONLY the mono_kitti target;
+# the ORB-SLAM3 library and all other examples are reused from cache.
+COPY deadline_iterator.h /orbslam3/Examples/Monocular/deadline_iterator.h
+COPY mono_kitti.cc       /orbslam3/Examples/Monocular/mono_kitti.cc
+RUN touch /orbslam3/Examples/Monocular/mono_kitti.cc && \
+    cd /orbslam3/build && make mono_kitti -j"$(nproc)" && \
+    strings /orbslam3/Examples/Monocular/mono_kitti | grep -q SAL_DEADLINE_FPS
+
+# Same deadline harness plumbed into the EuRoC stereo-inertial example, for the
+# ORB-SLAM3-vs-Nitro real-time comparison. Recompiles ONLY the
+# stereo_inertial_euroc target; the library and all other examples stay cached.
+COPY deadline_iterator.h      /orbslam3/Examples/Stereo-Inertial/deadline_iterator.h
+COPY stereo_inertial_euroc.cc /orbslam3/Examples/Stereo-Inertial/stereo_inertial_euroc.cc
+RUN touch /orbslam3/Examples/Stereo-Inertial/stereo_inertial_euroc.cc && \
+    cd /orbslam3/build && make stereo_inertial_euroc -j"$(nproc)" && \
+    strings /orbslam3/Examples/Stereo-Inertial/stereo_inertial_euroc | grep -q SAL_DEADLINE_FPS
+
+# Same deadline harness plumbed into the EuRoC STEREO (vision-only) example.
+# This is the controlled counterpart to stereo_inertial_euroc: identical
+# sequence and stereo geometry, IMU as the only difference, so frame-drop
+# robustness can be attributed to inertial sensing or not. Recompiles ONLY the
+# stereo_euroc target; the library and all other examples stay cached.
+COPY deadline_iterator.h /orbslam3/Examples/Stereo/deadline_iterator.h
+COPY stereo_euroc.cc     /orbslam3/Examples/Stereo/stereo_euroc.cc
+RUN touch /orbslam3/Examples/Stereo/stereo_euroc.cc && \
+    cd /orbslam3/build && make stereo_euroc -j"$(nproc)" && \
+    strings /orbslam3/Examples/Stereo/stereo_euroc | grep -q SAL_DEADLINE_FPS
+
 WORKDIR /orbslam3
 
 CMD ["/bin/bash"]

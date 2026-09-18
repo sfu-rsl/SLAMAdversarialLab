@@ -1,0 +1,58 @@
+experiment:
+  name: runtime_stress_tum_desk_orbslam3_memory_breaking
+  description: "Memory breaking point sweep for ORB-SLAM3 (baseline ~350MB)"
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: mem_400mb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            memory:
+              max_mb: 400
+
+    - name: mem_380mb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            memory:
+              max_mb: 380
+
+    - name: mem_360mb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            memory:
+              max_mb: 360
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

@@ -65,3 +65,39 @@ def _update_recursive(dict1: Dict, dict2: Dict) -> None:
             _update_recursive(dict1[k], v)
         else:
             dict1[k] = v
+
+
+def tee_console_output(main_cmd: str, container_output_path: str) -> str:
+    """Wrap a container shell command so its console output is persisted per run.
+
+    Six wrappers used to run their SLAM bare, so the console never reached the
+    run directory and only survived in the per-campaign log, where every repeat
+    of a cell shares one file. That makes the standing rule -- a health verdict
+    read from THIS run's log before its ATE is scored -- unsatisfiable, which is
+    how it was found (preflight P18).
+
+    Both streams are merged deliberately: several of these systems report
+    tracking loss and reset diagnostics on stderr, so a log carrying only stdout
+    would exist, pass an existence check, and still be blind to the failure
+    signatures it is read for.
+
+    Requires ``bash`` (not ``sh``) for PIPESTATUS, which every caller already
+    uses. The SLAM's own exit status is preserved through the pipe rather than
+    tee's, so a crash still reports as a crash.
+    """
+    return (
+        # Unbuffered: Python block-buffers stdout when it is a pipe rather than
+        # a TTY, so a SLAM that is force-stopped (the deadline harness and the
+        # stop-on-line workarounds both kill their container) loses whatever is
+        # still in the buffer. DPVO produced a 0-byte log for exactly this
+        # reason while noisier systems happened to flush. Line-buffering costs
+        # nothing here and makes the capture survive a kill.
+        # The braces are load-bearing. Without grouping, `A && B && C 2>&1 | tee`
+        # parses as `A && B && (C 2>&1 | tee)`, so the pipe binds ONLY to the
+        # last command in the chain. DPVO's command ends in a silent `cp`, which
+        # is why its log came out 0 bytes while systems whose command ends in
+        # the python call happened to capture fine.
+        "set +e; export PYTHONUNBUFFERED=1; "
+        f"{{ {main_cmd} ; }} 2>&1 | tee {container_output_path}/slam_output.log; "
+        "exit ${PIPESTATUS[0]}"
+    )

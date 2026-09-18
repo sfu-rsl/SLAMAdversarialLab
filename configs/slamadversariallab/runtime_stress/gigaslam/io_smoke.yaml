@@ -1,0 +1,45 @@
+experiment:
+  name: runtime_stress_kitti_04_gigaslam_io_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on KITTI sequence 04 with GigaSLAM,
+    exercising the IO-bandwidth stressor (cgroup v2 io.max read_bps/write_bps
+    via PodmanIoController). Before the scenario the pipeline drops the
+    dataset's page cache so reads hit /dev/sda. The 10 MB/s cap is applied to
+    the whole-disk device backing the dataset and output dirs; GigaSLAM streams
+    its 200-frame KITTI sequence and writes hierarchical Gaussian-splat output,
+    so the throttle affects both the frame reads and the map writeback.
+    Verifies the IO control plumbing end to end.
+  seed: 42
+
+dataset:
+  type: kitti
+  sequence: "04"
+  max_frames: 200
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: io_10mb_per_sec
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 1000
+          controls:
+            io:
+              read_bps: 10000000
+              write_bps: 10000000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

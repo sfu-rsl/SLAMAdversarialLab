@@ -1,0 +1,49 @@
+experiment:
+  name: runtime_stress_euroc_vggtslam_hami_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on EuRoC V1_01_easy with VGGT-SLAM.
+    Exercises the full HAMi GPU plumbing (libvgpu.so LD_PRELOAD +
+    CUDA_DEVICE_MEMORY_LIMIT/SM_LIMIT + CDI device injection) against a
+    real CUDA workload. The 20 GB cap is comfortably above the VGGT-1B
+    working set on this sequence (empirically ~13 GB peak after PyTorch
+    caching allocator expansion), so the hook fires on every cuMemAlloc
+    but the cap is never exceeded and the trajectory completes. Paired
+    with the _oom config that drops below the working set to prove cap
+    enforcement positively.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 300
+  load_stereo: false
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: gpu_vram_20gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            gpu:
+              vram_limit_mb: 20480
+              sm_limit_percent: 100
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

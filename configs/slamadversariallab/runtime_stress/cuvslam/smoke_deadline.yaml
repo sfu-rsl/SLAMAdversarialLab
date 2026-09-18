@@ -1,0 +1,58 @@
+experiment:
+  name: cuvslam_smoke_deadline
+  description: 'cuVSLAM integration smoke: the real-time deadline harness. The
+    driver wraps ONLY the camera frames, never the merged camera+IMU record list
+    -- on V1_01_easy that list is 10:1 IMU, so wrapping it would put total_items
+    an order of magnitude too high and count IMU samples as dropped frames. A
+    20 fps target matches the EuRoC camera rate, so drops here mean the SLAM
+    genuinely fell behind rather than that the deadline was set below the data.'
+  seed: 42
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: V1_01_easy
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+perturbations:
+- name: baseline
+  type: none
+  enabled: true
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+  - name: deadline_20fps_clean
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 30
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: clean
+      duration_s: 3600
+      controls: {}
+  - name: deadline_20fps_cpu1
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 30
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: stress
+      duration_s: 3600
+      controls:
+        cpu:
+          max_cores: 1.0
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

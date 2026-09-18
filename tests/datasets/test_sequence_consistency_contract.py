@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from slamadverseriallab.config.schema import DatasetConfig
-from slamadverseriallab.datasets.kitti import KittiDataset
-from slamadverseriallab.datasets.tum import TUMDataset
+from slamadversariallab.config.schema import DatasetConfig
+from slamadversariallab.datasets.kitti import KittiDataset
+from slamadversariallab.datasets.tum import TUMDataset
 
 
 def test_kitti_sequence_consistency_accepts_numeric_alias(tmp_path: Path) -> None:

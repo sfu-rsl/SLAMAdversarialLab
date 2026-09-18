@@ -2,7 +2,7 @@
 
 import yaml
 
-from slamadverseriallab.modules import get_module_documentation, list_modules
+from slamadversariallab.modules import get_module_documentation, list_modules
 
 
 def test_module_registry_exposes_descriptions_for_representative_fields() -> None:

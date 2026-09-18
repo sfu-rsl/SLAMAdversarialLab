@@ -1,0 +1,4 @@
+# Transient copy of the canonical C++ deadline iterator staged into this build
+# context by build.sh. The single source of truth lives in
+# src/runtime_stress/deadline_iterator.h; never commit the staged copy.
+/deadline_iterator.h

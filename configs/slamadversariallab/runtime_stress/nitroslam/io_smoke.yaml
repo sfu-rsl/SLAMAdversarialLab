@@ -1,0 +1,46 @@
+experiment:
+  name: runtime_stress_euroc_nitroslam_io_smoke_podman
+  description: >-
+    IO runtime-stress smoke for Nitro-SLAM (EuRoC V1_01_easy stereo-inertial).
+    Caps block IO to 10 MB/s read+write (cgroup v2 io.max via podman update) during
+    the stress phase. The runtime-stress pipeline pre-evicts the dataset from the
+    page cache for IO-controlled scenarios, so reads hit disk and the cap is not a
+    page-cache no-op. Validates the IO controller resolves the whole-disk device
+    from io_target_paths and attaches to the Nitro container.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 600
+  load_stereo: true
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: io_10mb_per_sec
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 300
+          controls:
+            io:
+              read_bps: 10000000
+              write_bps: 10000000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

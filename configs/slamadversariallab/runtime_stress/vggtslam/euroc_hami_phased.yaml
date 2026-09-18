@@ -1,0 +1,65 @@
+experiment:
+  name: runtime_stress_euroc_vggtslam_hami_phased_podman
+  description: >-
+    Demonstrates HAMi GPU cap MUTATION across phases — something that was
+    previously impossible because libvgpu.so reads CUDA_DEVICE_MEMORY_LIMIT
+    once at process init. With the new GpuHamiController.apply() we mutate
+    shared_region_t.limit[0] in the bind-mounted cache file at every phase
+    boundary, so caps change mid-run.
+
+    Three phases, each with a different VRAM cap. The container launches
+    with the first non-None phase's cap as the env-var seed. apply() then
+    writes a new uint64 to limit[0] at each phase boundary, and HAMi reads
+    the new value on the next cuMemAlloc.
+
+    Runtime caveat: tightening the cap rejects FUTURE allocations only;
+    HAMi never reclaims memory the SLAM has already claimed. So a phase
+    that drops the cap loosens future allocations, but a phase that
+    tightens may simply prevent further growth.
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 300
+  load_stereo: false
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    # Three phases, all with caps loose enough that VGGT-SLAM completes.
+    # Verifies the SLAM survives multiple per-phase mutations AND a trajectory
+    # is produced, which is what the previous "loose -> tight -> drop" scenario
+    # couldn't show because tightening below the working set OOMed mid-run.
+    - name: gpu_phased_survives_mutations
+      enabled: true
+      phases:
+        - name: phase1_loose
+          duration_s: 4
+          controls:
+            gpu:
+              vram_limit_mb: 20480   # 20 GB — comfortable headroom over ~13.9 GB peak
+        - name: phase2_above_working_set
+          duration_s: 4
+          controls:
+            gpu:
+              vram_limit_mb: 14336   # 14 GB — just above measured working set
+        - name: phase3_drop
+          duration_s: 30
+          # No gpu controls -> apply() writes 0 to limit[0] (cap dropped)
+          # Long phase so it covers VGGT-SLAM's full remaining runtime.
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

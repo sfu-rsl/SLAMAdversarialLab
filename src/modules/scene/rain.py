@@ -136,7 +136,7 @@ class RainModule(PerturbationModule):
     def _create_dataset_symlink(self) -> None:
         """Create symlink for rain-rendering to find the source images."""
         # rain-rendering expects: data/source/{dataset_name}
-        symlink_path = self.rain_rendering_path / "data" / "source" / "slamadverseriallab"
+        symlink_path = self.rain_rendering_path / "data" / "source" / "slamadversariallab"
 
         symlink_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -163,11 +163,11 @@ class RainModule(PerturbationModule):
         camera_dir = self.get_camera_directory_name(camera_role)
         depth_dir = f"{camera_role}_depth"
 
-        config_content = f'''"""Dynamic config for SLAMAdverserialLab KITTI rain rendering - {camera_role}."""
+        config_content = f'''"""Dynamic config for SLAMAdversarialLab KITTI rain rendering - {camera_role}."""
 import os
 
 def resolve_paths(params):
-    dataset_root = "data/source/slamadverseriallab"
+    dataset_root = "data/source/slamadversariallab"
     sequence = "{source_name}"
 
     params.sequences = [sequence]
@@ -212,7 +212,7 @@ def settings():
 '''
 
         # Write config file (camera-specific)
-        config_path = self.rain_rendering_path / "config" / f"slamadverseriallab_{camera_role}.py"
+        config_path = self.rain_rendering_path / "config" / f"slamadversariallab_{camera_role}.py"
         config_path.write_text(config_content)
         logger.info(f"Created rain-rendering config for {camera_role}: {config_path}")
 
@@ -249,7 +249,7 @@ def settings():
         for camera_role in self.cameras:
             logger.info(f"--- Processing camera role: {camera_role} ---")
 
-            output_base = self.rain_rendering_path / "data" / "output" / "slamadverseriallab" / source_path.name
+            output_base = self.rain_rendering_path / "data" / "output" / "slamadversariallab" / source_path.name
             camera_rainy_dir = output_base / "rain" / f"{self.intensity}mm" / camera_role / "rainy_image"
 
             if camera_rainy_dir.exists() and self._input_path is None:
@@ -274,14 +274,14 @@ def settings():
                 "--user", f"{user_id}:{group_id}",
                 "-e", "HOME=/tmp",
                 "-e", "MPLCONFIGDIR=/tmp/matplotlib",
-                "-v", f"{source_abs}:/workspace/data/source/slamadverseriallab",
+                "-v", f"{source_abs}:/workspace/data/source/slamadversariallab",
                 "-v", f"{output_abs}:/workspace/data/output",
                 "-v", f"{particles_abs}:/workspace/data/particles",
-                "-v", f"{config_abs}:/workspace/config/slamadverseriallab.py",
+                "-v", f"{config_abs}:/workspace/config/slamadversariallab.py",
                 "-v", f"{simulation_py_abs}:/workspace/tools/simulation.py",
                 "rain-rendering:latest",
                 "python3", "main.py",
-                "--dataset", "slamadverseriallab",
+                "--dataset", "slamadversariallab",
                 "--intensity", str(self.intensity)
             ]
 
@@ -314,7 +314,7 @@ def settings():
 
                 logger.info(f"Rain-rendering completed successfully for {camera_role}")
 
-                output_base = self.rain_rendering_path / "data" / "output" / "slamadverseriallab" / source_path.name
+                output_base = self.rain_rendering_path / "data" / "output" / "slamadversariallab" / source_path.name
                 temp_rainy_dir = output_base / "rain" / f"{self.intensity}mm" / "rainy_image"
 
                 if not temp_rainy_dir.exists():
@@ -435,7 +435,7 @@ def settings():
         self._cleanup_depth()
 
         # Remove dataset symlink
-        symlink_path = self.rain_rendering_path / "data" / "source" / "slamadverseriallab"
+        symlink_path = self.rain_rendering_path / "data" / "source" / "slamadversariallab"
         if symlink_path.exists() or symlink_path.is_symlink():
             symlink_path.unlink()
             logger.info(f"Removed dataset symlink: {symlink_path}")
@@ -443,7 +443,7 @@ def settings():
         # Remove any remaining camera-specific config files
         config_dir = self.rain_rendering_path / "config"
         if config_dir.exists():
-            for config_file in config_dir.glob("slamadverseriallab_*.py"):
+            for config_file in config_dir.glob("slamadversariallab_*.py"):
                 config_file.unlink()
                 logger.debug(f"Removed config file: {config_file}")
 

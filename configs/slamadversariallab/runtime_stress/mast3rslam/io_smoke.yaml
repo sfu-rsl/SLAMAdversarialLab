@@ -1,0 +1,46 @@
+experiment:
+  name: runtime_stress_tum_desk_mast3rslam_io_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on TUM freiburg1_desk with MASt3R-SLAM,
+    exercising the IO-bandwidth stressor (cgroup v2 io.max read_bps/write_bps
+    via PodmanIoController). Before the scenario the pipeline drops the
+    dataset's page cache so reads hit /dev/sda. The 10 MB/s cap is applied to
+    the whole-disk device backing the dataset and output dirs; MASt3R-SLAM
+    reads its 80-frame dataset once up front, so the throttle mostly affects
+    that initial read and the pointmap/keyframe writeback rather than the
+    compute hot path. Verifies the IO control plumbing end to end.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: io_10mb_per_sec
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            io:
+              read_bps: 10000000
+              write_bps: 10000000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

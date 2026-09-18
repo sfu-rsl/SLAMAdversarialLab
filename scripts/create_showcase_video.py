@@ -24,9 +24,9 @@ from tqdm import tqdm
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from slamadverseriallab.config.parser import expand_env_vars
-from slamadverseriallab.utils.io import read_image, write_image
-from slamadverseriallab.utils.paths import create_temp_dir
+from slamadversariallab.config.parser import expand_env_vars
+from slamadversariallab.utils.io import read_image, write_image
+from slamadversariallab.utils.paths import create_temp_dir
 
 
 def load_config(path: str) -> Dict[str, Any]:

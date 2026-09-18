@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from slamadverseriallab.pipelines.robustness_boundary import RobustnessBoundaryPipeline
+from slamadversariallab.pipelines.robustness_boundary import RobustnessBoundaryPipeline
 
 
 def _write_composite_boundary_config(

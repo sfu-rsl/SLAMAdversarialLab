@@ -95,3 +95,4 @@ paper/*.log
 # LaTeX style files (downloaded)
 paper/IEEEtran.bst
 paper/ieeeconf.cls
+deps/stress-ng/stress-ng-static

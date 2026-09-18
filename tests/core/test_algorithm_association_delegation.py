@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from slamadverseriallab.algorithms.orbslam3 import ORBSLAM3Algorithm
-from slamadverseriallab.algorithms.photoslam import PhotoSLAMAlgorithm
-from slamadverseriallab.algorithms.types import SLAMRunRequest, SensorMode
+from slamadversariallab.algorithms.orbslam3 import ORBSLAM3Algorithm
+from slamadversariallab.algorithms.photoslam import PhotoSLAMAlgorithm
+from slamadversariallab.algorithms.types import SLAMRunRequest, SensorMode
 
 
 def test_orbslam3_find_association_delegates_to_shared_service(
@@ -24,7 +24,7 @@ def test_orbslam3_find_association_delegates_to_shared_service(
         return expected
 
     monkeypatch.setattr(
-        "slamadverseriallab.algorithms.orbslam3.resolve_tum_association_for_orbslam3",
+        "slamadversariallab.algorithms.orbslam3.resolve_tum_association_for_orbslam3",
         _fake_resolver,
     )
 
@@ -56,7 +56,7 @@ def test_orbslam3_generate_association_delegates_to_shared_service(
         return expected
 
     monkeypatch.setattr(
-        "slamadverseriallab.algorithms.orbslam3.generate_tum_association_with_associate_py",
+        "slamadversariallab.algorithms.orbslam3.generate_tum_association_with_associate_py",
         _fake_generator,
     )
 

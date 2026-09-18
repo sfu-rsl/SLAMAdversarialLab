@@ -7,8 +7,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from slamadverseriallab.config.schema import PerturbationConfig
-from slamadverseriallab.modules.base import ModuleSetupContext
+from slamadversariallab.config.schema import PerturbationConfig
+from slamadversariallab.modules.base import ModuleSetupContext
 
 
 def _setup_context(tmp_path: Path) -> ModuleSetupContext:
@@ -31,8 +31,8 @@ def test_fog_noise_backend_falls_back_to_perlin_when_simplex_missing(
     tmp_path: Path,
 ) -> None:
     pytest.importorskip("torch")
-    from slamadverseriallab.modules.scene.fog import FogModule
-    import slamadverseriallab.utils.noise as noise_utils
+    from slamadversariallab.modules.scene.fog import FogModule
+    import slamadversariallab.utils.noise as noise_utils
 
     monkeypatch.setattr(FogModule, "_setup_depth_estimation", _stub_depth_setup)
 
@@ -71,7 +71,7 @@ def test_fog_noise_backend_uses_simplex_when_available(
     tmp_path: Path,
 ) -> None:
     pytest.importorskip("torch")
-    from slamadverseriallab.modules.scene.fog import FogModule
+    from slamadversariallab.modules.scene.fog import FogModule
 
     monkeypatch.setattr(FogModule, "_setup_depth_estimation", _stub_depth_setup)
 
@@ -110,7 +110,7 @@ def test_fog_noise_backend_simplex_raises_when_simplex_unavailable(
     tmp_path: Path,
 ) -> None:
     pytest.importorskip("torch")
-    from slamadverseriallab.modules.scene.fog import FogModule
+    from slamadversariallab.modules.scene.fog import FogModule
 
     monkeypatch.setattr(FogModule, "_setup_depth_estimation", _stub_depth_setup)
     monkeypatch.setattr(
@@ -136,8 +136,8 @@ def test_fog_noise_backend_perlin_forces_perlin(
     tmp_path: Path,
 ) -> None:
     pytest.importorskip("torch")
-    from slamadverseriallab.modules.scene.fog import FogModule
-    import slamadverseriallab.utils.noise as noise_utils
+    from slamadversariallab.modules.scene.fog import FogModule
+    import slamadversariallab.utils.noise as noise_utils
 
     monkeypatch.setattr(FogModule, "_setup_depth_estimation", _stub_depth_setup)
 
@@ -177,7 +177,7 @@ def test_fog_noise_backend_ignored_when_noise_disabled(
     tmp_path: Path,
 ) -> None:
     pytest.importorskip("torch")
-    from slamadverseriallab.modules.scene.fog import FogModule
+    from slamadversariallab.modules.scene.fog import FogModule
 
     monkeypatch.setattr(FogModule, "_setup_depth_estimation", _stub_depth_setup)
 
@@ -197,7 +197,7 @@ def test_fog_get_config_reports_selected_noise_backend(
     tmp_path: Path,
 ) -> None:
     pytest.importorskip("torch")
-    from slamadverseriallab.modules.scene.fog import FogModule
+    from slamadversariallab.modules.scene.fog import FogModule
 
     monkeypatch.setattr(FogModule, "_setup_depth_estimation", _stub_depth_setup)
     monkeypatch.setattr(

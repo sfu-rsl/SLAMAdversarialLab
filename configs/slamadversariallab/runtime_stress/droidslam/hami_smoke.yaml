@@ -1,0 +1,47 @@
+experiment:
+  name: runtime_stress_tum_desk_droidslam_hami_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on TUM freiburg1_desk with DROID-SLAM.
+    Exercises the full HAMi GPU plumbing (libvgpu.so LD_PRELOAD +
+    CUDA_DEVICE_MEMORY_LIMIT/SM_LIMIT + CDI device injection + per-container
+    bind-mounted shared cache file for runtime mutation) against DROID-SLAM's
+    PyTorch + native CUDA extensions. The 8 GB cap is comfortably above
+    DROID-SLAM's working set for an 80-frame TUM run, so the hook fires on
+    every cuMemAlloc but the cap is never exceeded and the trajectory
+    completes. Paired with the phased config to demonstrate mid-run cap
+    mutation at phase boundaries.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: gpu_vram_8gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 60
+          controls:
+            gpu:
+              vram_limit_mb: 8192
+              sm_limit_percent: 100
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

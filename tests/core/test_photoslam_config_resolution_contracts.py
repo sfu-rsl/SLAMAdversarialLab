@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from slamadverseriallab.algorithms.photoslam import PhotoSLAMAlgorithm
-from slamadverseriallab.algorithms.types import SLAMRunRequest, SLAMRuntimeContext, SensorMode
+from slamadversariallab.algorithms.photoslam import PhotoSLAMAlgorithm
+from slamadversariallab.algorithms.types import SLAMRunRequest, SLAMRuntimeContext, SensorMode
 
 
 def _build_algo_with_cfg_root(tmp_path: Path) -> tuple[PhotoSLAMAlgorithm, Path]:

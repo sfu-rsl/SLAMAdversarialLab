@@ -1,9 +1,11 @@
-"""ORB-SLAM3 algorithm implementation for SLAMAdverserialLab."""
+"""ORB-SLAM3 algorithm implementation for SLAMAdversarialLab."""
 
 import logging
+import re
 import shutil
 import subprocess
 import time
+import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -18,9 +20,22 @@ logger = logging.getLogger(__name__)
 
 
 class ORBSLAM3Algorithm(SLAMAlgorithm):
-    """ORB-SLAM3 SLAM algorithm via Docker container."""
+    """ORB-SLAM3 SLAM algorithm via Docker or Podman container."""
 
-    def __init__(self):
+    # Container naming/cleanup knobs shared with subclasses (nitroslam), so
+    # the lifecycle methods below need no per-fork copies.
+    _container_name_prefix = "orbslam3"
+    _cleanup_image_substring = "orbslam3"
+    # Appended to the image-not-found preflight error; forks override with
+    # their own build instructions.
+    _image_build_hint = "Build, pull, or load the image before running evaluation."
+
+    def __init__(self, container_runtime: str = "docker"):
+        if container_runtime not in {"docker", "podman"}:
+            raise ValueError(
+                f"container_runtime must be 'docker' or 'podman', got {container_runtime!r}"
+            )
+        self.container_runtime = container_runtime
         self.docker_image = "orbslam3:latest"
 
     @property
@@ -34,6 +49,10 @@ class ORBSLAM3Algorithm(SLAMAlgorithm):
             "tum": ["mono", "rgbd"],
             "euroc": ["stereo"],
         }
+
+    @property
+    def runtime_stress_target_kind(self) -> str:
+        return f"{self.container_runtime}_container"
 
     def resolve_config_name(self, sequence: str, dataset_type: str, sensor_mode: Optional[SensorMode] = None) -> Optional[str]:
         if dataset_type.lower() == "kitti":
@@ -63,11 +82,14 @@ class ORBSLAM3Algorithm(SLAMAlgorithm):
 
     def _preflight_checks(self, request: SLAMRunRequest, ctx: SLAMRuntimeContext) -> None:
         """Validate ORB-SLAM3 runtime dependencies."""
-        if shutil.which("docker") is None:
-            raise RuntimeError("ORB-SLAM3 requires Docker, but 'docker' was not found in PATH.")
+        runtime = self.container_runtime
+        if shutil.which(runtime) is None:
+            raise RuntimeError(
+                f"{self.name} requires {runtime!r}, but it was not found in PATH."
+            )
 
         image_check = subprocess.run(
-            ["docker", "image", "inspect", self.docker_image],
+            [runtime, "image", "inspect", self.docker_image],
             capture_output=True,
             text=True,
             check=False,
@@ -75,8 +97,8 @@ class ORBSLAM3Algorithm(SLAMAlgorithm):
         )
         if image_check.returncode != 0:
             raise RuntimeError(
-                f"ORB-SLAM3 Docker image not found: {self.docker_image}. "
-                "Build or pull the image before running evaluation."
+                f"{self.name} container image not found in {runtime}: {self.docker_image}. "
+                f"{self._image_build_hint}"
             )
 
         dataset_type = request.dataset_type.lower()
@@ -335,9 +357,11 @@ class ORBSLAM3Algorithm(SLAMAlgorithm):
             return None
 
         logger.info(f"  Using ORB-SLAM3 directory: {config_dir}")
+        container_name = self._build_runtime_stress_container_name(ctx, output_dir)
 
         docker_cmd = [
-            "docker", "run", "--rm",
+            self.container_runtime, "run", "--rm",
+            "--name", container_name,
             "-v", f"{dataset_path.resolve()}:/dataset:ro",
             "-v", f"{output_dir.resolve()}:/output",
         ]
@@ -376,7 +400,53 @@ class ORBSLAM3Algorithm(SLAMAlgorithm):
             config_abs_path = f"{config_dir}/{ctx.internal_config_name}"
             logger.info(f"  Using internal config: {config_abs_path}")
 
+        extras = self._runtime_stress_launch_extras()
+        extra_env = extras.get("env") or {}
+        extra_mounts = extras.get("mounts") or []
+        extra_devices = extras.get("devices") or []
+        extra_run_flags = list(extras.get("run_flags") or [])
+
+        if extra_env or extra_mounts or extra_devices:
+            logger.info(
+                "  ORB-SLAM3 is non-CUDA; runtime-stress HAMi env vars are injected "
+                "but inert — this run exercises plumbing only."
+            )
+
+        for key, value in extra_env.items():
+            docker_cmd.extend(["-e", f"{key}={value}"])
+
+        # Launch-time flags (a constant memory cap applied at run rather than by
+        # a later ``podman update``, which hung on at least one system).
+        docker_cmd.extend(extra_run_flags)
+
+        for mount in extra_mounts:
+            src, dst, mode = mount
+            docker_cmd.extend(["-v", f"{src}:{dst}:{mode}"])
+
+        for device in extra_devices:
+            docker_cmd.extend(["--device", device])
+
+        # Real-time deadline harness (in-loop frame dropping). Only the entry
+        # points we have patched with deadline_iterator.h honor the SAL_DEADLINE_*
+        # env vars, so gate the injection to those to keep the contract honest
+        # (no "deadline set but silently ignored" runs for the unpatched
+        # tum/kitti-stereo binaries). Patched today:
+        #   - mono_kitti      (KITTI, monocular)
+        #   - stereo_euroc    (EuRoC, stereo, vision-only) -- the controlled
+        #     counterpart to orbslam3i's stereo_inertial_euroc, isolating IMU.
+        # No-op unless the pipeline set SAL_DEADLINE_FPS in the host environment.
+        deadline_wired = (
+            (dataset_type == "kitti" and not is_stereo)
+            or dataset_type == "euroc"   # euroc is stereo-only here -> stereo_euroc
+        )
+        if deadline_wired:
+            from ..runtime_stress.podman_injection import apply_realtime_to_podman_cmd
+
+            apply_realtime_to_podman_cmd(docker_cmd, "/output")
+
         docker_cmd.append(self.docker_image)
+
+        runtime_stress_active = ctx.runtime_stress is not None
 
         if dataset_type == "tum":
             association_file = ctx.staging_artifacts.get("association_file")
@@ -387,39 +457,83 @@ class ORBSLAM3Algorithm(SLAMAlgorithm):
                 logger.error("  No association file found in TUM dataset")
                 return None
 
-            bash_cmd = (
-                f"xvfb-run -a {executable} Vocabulary/ORBvoc.txt {config_abs_path} /dataset {assoc_arg}; "
-                f"cp CameraTrajectory.txt /output/ 2>/dev/null; "
-                f"cp KeyFrameTrajectory.txt /output/ 2>/dev/null; "
-                f"ls /output/*.txt 2>/dev/null || echo 'No trajectory files generated'"
+            slam_cmd = (
+                f"xvfb-run -a {executable} Vocabulary/ORBvoc.txt {config_abs_path} /dataset {assoc_arg}"
             )
         elif dataset_type == "euroc":
             timestamps_file = "/dataset/orbslam3_timestamps.txt"
             logger.info("  Using staged EuRoC timestamps file: /dataset/orbslam3_timestamps.txt")
 
-            bash_cmd = (
-                f"xvfb-run -a {executable} Vocabulary/ORBvoc.txt {config_abs_path} /dataset {timestamps_file}; "
-                f"cp CameraTrajectory.txt /output/ 2>/dev/null; "
-                f"cp KeyFrameTrajectory.txt /output/ 2>/dev/null; "
-                f"ls /output/*.txt 2>/dev/null || echo 'No trajectory files generated'"
+            slam_cmd = (
+                f"xvfb-run -a {executable} Vocabulary/ORBvoc.txt {config_abs_path} /dataset {timestamps_file}"
             )
         else:
             # KITTI format
-            bash_cmd = (
-                f"xvfb-run -a {executable} Vocabulary/ORBvoc.txt {config_abs_path} /dataset; "
-                f"cp CameraTrajectory.txt /output/ 2>/dev/null; "
-                f"cp KeyFrameTrajectory.txt /output/ 2>/dev/null; "
-                f"ls /output/*.txt 2>/dev/null || echo 'No trajectory files generated'"
+            slam_cmd = (
+                f"xvfb-run -a {executable} Vocabulary/ORBvoc.txt {config_abs_path} /dataset"
             )
+
+        bash_cmd = self._build_container_bash_command(
+            slam_cmd=slam_cmd,
+            runtime_stress_active=runtime_stress_active,
+        )
 
         docker_cmd.extend(["bash", "-c", bash_cmd])
 
         logger.info(f"  Executing: {executable}")
 
+        io_target_paths = [str(dataset_path.resolve()), str(output_dir.resolve())]
+
         return ExecutionSpec(
             cmd=docker_cmd,
             stream_output=False,
             log_prefix="ORB-SLAM3",
+            target_kind=f"{self.container_runtime}_container",
+            target_metadata={
+                "container_name": container_name,
+                "io_target_paths": io_target_paths,
+            },
+        )
+
+    def _build_container_bash_command(
+        self,
+        *,
+        slam_cmd: str,
+        runtime_stress_active: bool,
+        copy_pairs: Optional[List[tuple]] = None,
+    ) -> str:
+        """Build the in-container shell command for one ORB-SLAM3-family run.
+
+        ``copy_pairs`` maps in-container trajectory sources to /output
+        destinations. The default covers the stock binaries, which write
+        CameraTrajectory.txt / KeyFrameTrajectory.txt to the working dir.
+        Forks whose binaries emit differently-named files (nitroslam's
+        f_/kf_ pairs) pass their own mapping instead of copying this method.
+        """
+        if copy_pairs is None:
+            copy_pairs = [
+                ("CameraTrajectory.txt", "/output/"),
+                ("KeyFrameTrajectory.txt", "/output/"),
+            ]
+        if not runtime_stress_active:
+            copies = " ".join(f"cp {src} {dst} 2>/dev/null;" for src, dst in copy_pairs)
+            return (
+                f"{slam_cmd}; "
+                f"{copies} "
+                f"ls /output/CameraTrajectory.txt /output/KeyFrameTrajectory.txt 2>/dev/null || "
+                f"echo 'No trajectory files generated'"
+            )
+
+        copies = " ".join(f"cp {src} {dst} 2>/dev/null || true;" for src, dst in copy_pairs)
+        return (
+            "set +e; "
+            f"{slam_cmd} 2>&1 | tee /output/slam_output.log; "
+            'slam_status=${PIPESTATUS[0]}; '
+            f"{copies} "
+            "printf '%s\\n' \"$slam_status\" > /output/slam_exit_code.txt; "
+            "ls /output/CameraTrajectory.txt /output/KeyFrameTrajectory.txt 2>/dev/null || "
+            "echo 'No trajectory files generated'; "
+            'exit "$slam_status"'
         )
 
     def _execute(self, request: SLAMRunRequest, ctx: SLAMRuntimeContext) -> bool:
@@ -464,12 +578,13 @@ class ORBSLAM3Algorithm(SLAMAlgorithm):
         return raw_trajectory
 
     def cleanup(self) -> None:
-        """Stop and remove any ORB-SLAM3 Docker containers."""
-        logger.debug("Cleaning up ORB-SLAM3 containers...")
+        """Stop and remove this wrapper's containers for the active runtime."""
+        runtime = self.container_runtime
+        logger.debug(f"Cleaning up {self.name} containers ({runtime})...")
 
         try:
             result = subprocess.run(
-                ["docker", "ps", "-a", "-q"],
+                [runtime, "ps", "-a", "-q"],
                 capture_output=True,
                 text=True,
                 timeout=10
@@ -482,25 +597,74 @@ class ORBSLAM3Algorithm(SLAMAlgorithm):
             orbslam_containers = []
             for cid in all_containers:
                 inspect_result = subprocess.run(
-                    ["docker", "inspect", "--format", "{{.Config.Image}}", cid],
+                    [runtime, "inspect", "--format", "{{.Config.Image}}", cid],
                     capture_output=True,
                     text=True,
                     timeout=5
                 )
-                if "orbslam3" in inspect_result.stdout.lower():
+                if self._cleanup_image_substring in inspect_result.stdout.lower():
                     orbslam_containers.append(cid)
 
             if orbslam_containers:
-                logger.info(f"  Found {len(orbslam_containers)} ORB-SLAM3 container(s), removing...")
+                logger.info(f"  Found {len(orbslam_containers)} {self.name} container(s), removing...")
                 for container_id in orbslam_containers:
-                    subprocess.run(["docker", "stop", container_id], capture_output=True, timeout=10)
-                    subprocess.run(["docker", "rm", "-f", container_id], capture_output=True, timeout=10)
+                    subprocess.run([runtime, "stop", container_id], capture_output=True, timeout=10)
+                    subprocess.run([runtime, "rm", "-f", container_id], capture_output=True, timeout=10)
                 time.sleep(2)
 
         except subprocess.TimeoutExpired:
-            logger.warning("  Docker cleanup timed out")
+            logger.warning(f"  {runtime} cleanup timed out")
         except Exception as e:
-            logger.warning(f"  Could not check Docker containers: {e}")
+            logger.warning(f"  Could not check {runtime} containers: {e}")
+
+    def _build_runtime_stress_container_name(
+        self,
+        ctx: SLAMRuntimeContext,
+        output_dir: Path,
+    ) -> str:
+        """Build a unique Docker container name for one ORB-SLAM3 run."""
+        raw_name = f"{self._container_name_prefix}-{ctx.sequence_name}-{output_dir.name}-{uuid.uuid4().hex[:8]}"
+        sanitized = re.sub(r"[^a-zA-Z0-9_.-]+", "-", raw_name.lower()).strip("-")
+        return sanitized[:120]
+
+    def _resolve_euroc_imu_csv(self, request: SLAMRunRequest) -> Optional[Path]:
+        """Resolve the EuRoC IMU CSV from the dataset path (IMU is never perturbed).
+
+        Shared by the stereo-inertial subclasses (orbslam3i, nitroslam).
+        """
+        candidates = [
+            request.dataset_path / "mav0" / "imu0" / "data.csv",
+            request.dataset_path / "imu0" / "data.csv",
+        ]
+        for candidate in candidates:
+            if candidate.exists() and candidate.is_file():
+                return candidate
+        return None
+
+    def _stage_euroc_imu(self, request: SLAMRunRequest, staged_path: Path) -> None:
+        """Copy mav0/imu0/data.csv (+ sensor.yaml) into the staged EuRoC structure.
+
+        The stereo-inertial binaries read IMU directly from
+        ``<seq>/mav0/imu0/data.csv``. Perturbations only touch camera images,
+        so the IMU stream is taken verbatim from the source dataset. Shared by
+        the stereo-inertial subclasses (orbslam3i, nitroslam).
+        """
+        imu_csv = self._resolve_euroc_imu_csv(request)
+        if imu_csv is None:
+            raise RuntimeError(
+                f"{self.name} (stereo-inertial) requires EuRoC IMU data, but no "
+                f"mav0/imu0/data.csv was found under {request.dataset_path}."
+            )
+
+        imu_dir = staged_path / "mav0" / "imu0"
+        imu_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(imu_csv, imu_dir / "data.csv")
+
+        imu_sensor_yaml = imu_csv.parent / "sensor.yaml"
+        if imu_sensor_yaml.exists():
+            shutil.copy2(imu_sensor_yaml, imu_dir / "sensor.yaml")
+
+        logger.info("  Staged EuRoC IMU stream from %s", imu_csv)
 
     def _find_association_file(self, dataset_path: Path, generate_if_missing: bool = False) -> Optional[str]:
         """Find the association file in a TUM dataset.

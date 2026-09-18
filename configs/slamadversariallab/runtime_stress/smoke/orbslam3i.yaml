@@ -1,0 +1,38 @@
+experiment:
+  name: p1smoke_orbslam3i
+  description: 'P1 preflight smoke: clean deadline run, no cap, orbslam3i.'
+  seed: 42
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: V1_01_easy
+  max_frames: 500
+  load_stereo: true
+  skip_depth: true
+perturbations:
+- name: baseline
+  type: none
+  enabled: true
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+  - name: smoke_clean_deadline
+    enabled: true
+    realtime:
+      target_fps: 20
+      warmup_frames: 30
+      queue_size: 2
+      drop_policy: drop_oldest
+    phases:
+    - name: warmup
+      duration_s: 2
+    - name: clean
+      duration_s: 3600
+      controls: {}
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

@@ -1,0 +1,48 @@
+experiment:
+  name: deadline_fps60_euroc_vggtslam
+  description: >-
+    Real-time deadline test on VGGT-SLAM (EuRoC V1_01_easy). VGGT-SLAM's
+    per-frame loop does light optical-flow disparity selection (the heavy
+    VGGT-1B submap inference is batched), so on this low-motion sequence the
+    loop runs at roughly 30 fps. A 60 fps camera deadline therefore outruns it
+    and forces frame drops: the DeadlineIterator drops frames whose deadline
+    passed before VGGT pulled them. VGGT keys poses by the number in each image
+    filename, so dropped frames yield sparser-but-correctly-identified poses
+    with no remap. (At <=20 fps VGGT keeps up and drops nothing -- the deadline
+    must be tighter than the loop's selection rate to bite.)
+  seed: 42
+
+dataset:
+  type: euroc
+  path: ./datasets/euroc/V1_01_easy
+  sequence: "V1_01_easy"
+  max_frames: 150
+  load_stereo: false
+  skip_depth: true
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: fps60_deadline
+      enabled: true
+      realtime:
+        target_fps: 60
+        warmup_frames: 5
+        queue_size: 1
+        drop_policy: drop_oldest
+      phases:
+        - name: stress
+          duration_s: 900
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

@@ -1,0 +1,46 @@
+experiment:
+  name: runtime_stress_tum_desk_dpvo_memory_breaking_podman
+  description: >-
+    Memory breaking-point run for DPVO on TUM freiburg1_desk (mono, 300 frames,
+    stride 2). The uncapped profile peaks at about 1.53 GB RSS (mem_6gb_loose
+    telemetry), but most of that is reclaimable page cache: under a 1024 MB cap
+    the kernel reclaims cache and the run survives. The unreclaimable working
+    set (torch/CUDA anonymous memory) sits between 640 MB and 1 GB, so this
+    640 MB cap forces the kernel OOM-kill (SIGKILL, exit 137, execution_ok
+    false, no trajectory). Demonstrates the memory controller ENFORCES, not just
+    attaches; pair with dpvo/memory_smoke.yaml
+    (loose 6 GB cap) for the attach-only signal. Runs with dpvo or dpvslam.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 300
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: mem_640mb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 600
+          controls:
+            memory:
+              max_mb: 640
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

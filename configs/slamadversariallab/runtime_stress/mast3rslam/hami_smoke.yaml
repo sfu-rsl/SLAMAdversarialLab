@@ -1,0 +1,50 @@
+experiment:
+  name: runtime_stress_tum_desk_mast3rslam_hami_smoke_podman
+  description: >-
+    Podman runtime-stress smoke test on TUM freiburg1_desk with MASt3R-SLAM.
+    Exercises the full HAMi GPU plumbing (libvgpu.so LD_PRELOAD +
+    CUDA_DEVICE_MEMORY_LIMIT/SM_LIMIT + CDI device injection + per-container
+    bind-mounted shared cache file for runtime mutation) against MASt3R-SLAM's
+    foundation-model + mast3r_slam_backends + lietorch CUDA hot path.
+    MASt3R-SLAM loads the ViT-Large MASt3R encoder (~1.1 GB FP16) plus
+    per-keyframe pointmap tensors; the 12 GB cap is comfortably above the
+    foundation-model working set on an 80-frame TUM mono run, so the hook
+    fires on every cuMemAlloc but the cap is never exceeded and the
+    trajectory completes. Paired with the phased config to demonstrate
+    mid-run cap mutation at phase boundaries. Second foundation-model
+    SLAM in the SAL framework (sibling to VGGT-SLAM).
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 80
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 500
+  scenarios:
+    - name: gpu_vram_12gb
+      enabled: true
+      phases:
+        - name: warmup
+          duration_s: 2
+        - name: stress
+          duration_s: 120
+          controls:
+            gpu:
+              vram_limit_mb: 12288
+              sm_limit_percent: 100
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

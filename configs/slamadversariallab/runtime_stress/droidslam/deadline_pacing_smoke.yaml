@@ -1,0 +1,47 @@
+experiment:
+  name: deadline_pacing_smoke_droidslam
+  description: >-
+    Pacing smoke test. TUM freiburg1_desk, 200 raw frames / stride=2 ->
+    100 sampled, target 5 fps. DROID sustains well above 5 fps, so the
+    deadline never bites (expect ~0 drops); instead the producer pacing
+    must force DROID to wait for each frame's arrival. With 5 warmup
+    frames absorbing init, the remaining 95 frames are paced at 5 fps
+    (~19 s), so the scenario wall time should be ~19 s + init rather than
+    the ~6-8 s an un-paced DROID would take. IO held loose.
+  seed: 42
+
+dataset:
+  type: tum
+  sequence: "freiburg1_desk"
+  path: ./datasets/TUM/rgbd_dataset_freiburg1_desk
+  max_frames: 200
+
+perturbations:
+  - name: baseline
+    type: none
+    enabled: true
+
+runtime_stress:
+  enabled: true
+  container_runtime: podman
+  telemetry:
+    sample_period_ms: 250
+  scenarios:
+    - name: fps5_paced
+      enabled: true
+      realtime:
+        target_fps: 5
+        warmup_frames: 5
+        queue_size: 1
+      phases:
+        - name: stress
+          duration_s: 120
+          controls:
+            io:
+              read_bps: 100000000
+              write_bps: 100000000
+
+output:
+  base_dir: ./results
+  save_images: false
+  create_timestamp_dir: false

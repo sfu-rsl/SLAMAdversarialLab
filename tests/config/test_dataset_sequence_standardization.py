@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from slamadverseriallab.config.parser import parse_dataset, load_config
+from slamadversariallab.config.parser import parse_dataset, load_config
 
 
 def test_parse_dataset_rejects_legacy_sequences_key() -> None:

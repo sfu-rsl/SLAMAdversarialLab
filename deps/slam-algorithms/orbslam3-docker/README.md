@@ -7,12 +7,20 @@ Minimal Docker setup for running ORB-SLAM3 on your datasets.
 ### Build the Image
 
 ```bash
-cd docker
-chmod +x build.sh
-./build.sh
+# From the repo root (uses docker; append 'podman' to build with podman):
+deps/slam-algorithms/orbslam3-docker/build.sh
 ```
 
-**Note**: Building takes 10-20 minutes as it compiles OpenCV, Pangolin, and ORB-SLAM3.
+`build.sh` stages the generic SAL deadline iterator
+(`src/runtime_stress/deadline_iterator.h`, the single source of truth shared
+with the Python `deadline_iterator.py`) into this build context, builds
+`orbslam3:latest`, then removes the staged copy. Build with this script rather
+than a raw `docker build`, otherwise the deadline `COPY` step has no header to
+copy.
+
+**Note**: A first build takes 10-20 minutes as it compiles OpenCV, Pangolin,
+and ORB-SLAM3. Rebuilds after a deadline-patch change reuse the cache and only
+recompile the `mono_kitti` example (seconds).
 
 ### Run with Volume Mounting
 
