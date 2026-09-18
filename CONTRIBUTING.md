@@ -21,27 +21,6 @@ Do not commit local datasets, checkpoints, `results/`, or other generated heavyw
 - Keep the README's "Evaluate Under Runtime Stress" section current when you
   change anything under `src/runtime_stress/`, `src/algorithms/` or `src/config/`.
 
-## Reporting a runtime-stress run
-
-Read the run's `slam_output.log` and report what it says alongside the metrics.
-An exit code, a pose count and an ATE are each consistent with a run that
-tracked the whole sequence and one that stopped early, so judge the outcome from
-the log.
-
-For the ORB-SLAM3 family (`orbslam3`, `orbslam3i`, `nitroslam`) the markers are:
-
-- `Active map reset recieved` -- the system discarded the map. Any occurrence
-  means the run failed, whatever its pose count or ATE.
-- `Fail to track local map!` counts. One followed by `Relocalized!!` with no
-  reset is a recovered stumble.
-- `N Frames set to lost`, `New Map created` counts, the final `Map N has K KFs`.
-
-Inertial variants additionally record reset causes (`IMU is not or recently
-initialized`, `Timestamp jump`) and `VIBA 1/2`, which marks IMU initialisation
-completing. Vision-only `orbslam3` has none of these.
-
-Identify the equivalent markers for any other backend before judging its runs.
-
 ## Tests
 
 Install the package in editable mode first (`pip install -e .`), so the tests

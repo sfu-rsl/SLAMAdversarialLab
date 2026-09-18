@@ -245,34 +245,16 @@ allocation rather than a slow one.
 
 #### Build `libvgpu.so`
 
-Use the provided wrapper Dockerfile:
-
 ```bash
-cd <repo-root>
-docker build \
-    --build-arg HAMI_CORE_REF=<pinned-commit-or-tag> \
-    -t sal-hami-builder \
-    -f docker/hami/Dockerfile .
-
-docker create --name sal-hami-extract sal-hami-builder
-sudo mkdir -p /opt/hami
-docker cp sal-hami-extract:/out/libvgpu.so /opt/hami/libvgpu.so
-docker rm sal-hami-extract
-sudo chmod 644 /opt/hami/libvgpu.so
+scripts/build_hami.sh
 ```
 
-If you prefer to build directly on the host (CUDA devel headers
-required):
-
-```bash
-git clone https://github.com/Project-HAMi/HAMi-core.git /tmp/HAMi-core
-cd /tmp/HAMi-core
-git checkout <pinned-commit-or-tag>
-make -j"$(nproc)"
-sudo mkdir -p /opt/hami
-sudo cp build/libvgpu.so /opt/hami/libvgpu.so
-sudo chmod 644 /opt/hami/libvgpu.so
-```
+It builds HAMi-core in a container and installs the result at
+`checkpoints/hami/libvgpu.so`, then prints the `SAL_HAMI_LIB_HOST_PATH` export
+to use. `--dest /opt/hami/libvgpu.so` installs system-wide instead, `--host`
+builds on the host rather than in a container (CUDA devel headers required),
+and `--ref` picks a different HAMi-core commit. The default ref is the one the
+GPU controller's byte offsets are derived from.
 
 #### Create the HAMi runtime directory
 
@@ -640,13 +622,22 @@ Use `list-modules --module <name>` for parameter documentation and
 
 | Algorithm | Datasets | Integration Class |
 | --- | --- | --- |
-| `orbslam3` | KITTI `mono/stereo`, TUM `mono/rgbd`, EuRoC `stereo` | [`ORBSLAM3Algorithm`](src/algorithms/orbslam3.py) |
+| `cuvslam` | EuRoC `stereo` | [`CuVSLAMAlgorithm`](src/algorithms/cuvslam.py) |
+| `dpvo` | TUM `mono` | [`DPVOAlgorithm`](src/algorithms/dpvo.py) |
+| `dpvslam` | TUM `mono` | [`DPVSLAMAlgorithm`](src/algorithms/dpvo.py) |
 | `droidslam` | TUM `mono` | [`DROIDSLAMAlgorithm`](src/algorithms/droidslam.py) |
 | `gigaslam` | KITTI `mono` | [`GigaSLAMAlgorithm`](src/algorithms/gigaslam.py) |
 | `mast3rslam` | TUM `mono` | [`MASt3RSLAMAlgorithm`](src/algorithms/mast3rslam.py) |
+| `nitroslam` | EuRoC `stereo` | [`NitroSLAMAlgorithm`](src/algorithms/nitroslam.py) |
+| `okvis2x` | EuRoC `stereo` | [`OKVIS2XAlgorithm`](src/algorithms/okvis2x.py) |
+| `okvis2xnn` | EuRoC `stereo` | [`OKVIS2XNNAlgorithm`](src/algorithms/okvis2x.py) |
+| `orbslam3` | KITTI `mono/stereo`, TUM `mono/rgbd`, EuRoC `stereo` | [`ORBSLAM3Algorithm`](src/algorithms/orbslam3.py) |
+| `orbslam3i` | EuRoC `stereo` | [`ORBSLAM3InertialAlgorithm`](src/algorithms/orbslam3i.py) |
 | `photoslam` | TUM `mono/rgbd`, EuRoC `stereo` | [`PhotoSLAMAlgorithm`](src/algorithms/photoslam.py) |
 | `s3pogs` | KITTI `mono` | [`S3POGSAlgorithm`](src/algorithms/s3pogs.py) |
-| `vggtslam` | EuRoC `mono` | [`VGGTSLAMAlgorithm`](src/algorithms/vggtslam.py) |
+| `vggtslam` | EuRoC `mono`, TUM `mono` | [`VGGTSLAMAlgorithm`](src/algorithms/vggtslam.py) |
+
+`python -m slamadversariallab list-algorithms` prints this from the registry.
 
 ### Perturbation Modules
 
@@ -669,6 +660,30 @@ Use `python -m slamadversariallab list-modules --module <name>` for parameter-le
 
 Deprecated modules stay available through the registry but are hidden from the default listing.
 
+### Resource Caps
+
+| Axis | Config keys | Controller |
+| --- | --- | --- |
+| `cpu` | `max_cores` | [`PodmanCpuController`](src/runtime_stress/podman_controllers.py), [`DockerCpuController`](src/runtime_stress/controllers.py), [`CpuQuotaController`](src/runtime_stress/controllers.py) |
+| `memory` | `max_mb` | [`PodmanMemoryController`](src/runtime_stress/podman_controllers.py), [`DockerMemoryController`](src/runtime_stress/controllers.py) |
+| `gpu` | `vram_limit_mb`, `sm_limit_percent` | [`GpuHamiController`](src/runtime_stress/hami_controller.py) |
+| `io` | `read_bps`, `write_bps`, `read_iops`, `write_iops` | [`PodmanIoController`](src/runtime_stress/podman_controllers.py) |
+
+A cap shrinks what the SLAM itself may use. Which controller runs depends on
+the target: a podman container, a docker container, or a host process group.
+
+### Load Antagonists
+
+A load antagonist competes with the SLAM instead of shrinking its allocation.
+All three are driven by [`PodmanLoadController`](src/runtime_stress/load_controller.py).
+
+| Config key | What it starts |
+| --- | --- |
+| `load.in_container` | stress-ng CPU workers inside the SLAM's own cgroup, so the two compete at equal priority |
+| `load.gpu` | VRAM ballast and a duty-cycled matmul in a fenced sibling container |
+| `load.segmentation` | SAM 3 segmentation as a real co-tenant process, with no cap or rate limit |
+
+
 ## Extension Points
 
 If you want to add new components, use the framework interfaces and config/schema contracts as the source of truth.
@@ -676,6 +691,12 @@ If you want to add new components, use the framework interfaces and config/schem
 - Datasets: implement [`BaseDataset`](src/datasets/base.py) and register in [`src/datasets/factory.py`](src/datasets/factory.py)
 - SLAM backends: implement [`SLAMAlgorithm`](src/algorithms/base.py) and register in [`src/algorithms/registry.py`](src/algorithms/registry.py)
 - Perturbation modules: subclass [`PerturbationModule`](src/modules/base.py) and expose a stable `module_name`
+- Stressor controllers: implement [`ResourceController`](src/runtime_stress/controllers.py),
+  which is `prepare`, `apply`, `release` and `cleanup`, then construct it in
+  `_build_controllers` in [`src/runtime_stress/orchestrator.py`](src/runtime_stress/orchestrator.py).
+  The caps and the load antagonist are both controllers. A new stressor axis also
+  needs a control block in [`src/config/schema.py`](src/config/schema.py) and a
+  matching field on `RuntimeStressControls` in [`src/runtime_stress/models.py`](src/runtime_stress/models.py)
 
 ## Contributing
 
