@@ -1,7 +1,7 @@
 """Verify the SAL_RUNTIME_PATH + bare ``from deadline_iterator`` import
 pattern that vendored SLAM scripts (e.g. DROID-SLAM/demo.py) rely on.
 
-The deadline_iterator.py file lives inside the SAL package, but a
+The deadline_iterator.py file sits inside the SAL package, but a
 SLAM running in its own conda env doesn't have ``slamadversariallab``
 installed. The framework injects the directory containing the file
 via SAL_RUNTIME_PATH so the SLAM can do:

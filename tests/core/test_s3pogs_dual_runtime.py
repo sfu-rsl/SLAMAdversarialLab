@@ -54,7 +54,7 @@ def _build_request_and_context(
     A fake staged KITTI sequence dir is created under
     ``s3pogs_root/datasets/KITTI/04`` (the same place
     ``_prepare_dataset`` would place it). The host left-camera dir
-    lives elsewhere so ``_collect_symlink_target_mounts`` can verify
+    sits elsewhere so ``_collect_symlink_target_mounts`` can verify
     the absolute symlink target is picked up for the podman bind-mount
     list.
     """
@@ -233,7 +233,7 @@ def test_s3pogs_podman_writes_container_paths_to_config(tmp_path: Path) -> None:
     assert 'dataset_path: "/dataset/KITTI/04/"' in text
     assert 'save_dir: "/output"' in text
     # inherit_from must be the relative path inside the image (where
-    # CWD = /s3pogs and the upstream KITTI configs live at
+    # CWD = /s3pogs and the upstream KITTI configs are at
     # configs/mono/KITTI/04.yaml).
     assert 'inherit_from: "configs/mono/KITTI/04.yaml"' in text
 

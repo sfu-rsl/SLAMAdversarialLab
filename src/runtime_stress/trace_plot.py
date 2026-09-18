@@ -355,7 +355,7 @@ def build_panels(trace, shares_cgroup=False):
         print(f"  ! no processor panel ({exc})")
         cpu_x, cpu_y, instantaneous = [], [], False
     if cpu_x:
-        # An in-container antagonist lives in the SLAM's own cgroup, so this
+        # An in-container antagonist runs in the SLAM's own cgroup, so this
         # figure covers both and cannot be attributed to the SLAM alone.
         cpu_label = "SLAM and its competitors" if shares_cgroup else "SLAM"
         lines = [(cpu_x, cpu_y, cpu_label, BLUE, "-")]

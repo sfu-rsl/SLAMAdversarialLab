@@ -6,7 +6,7 @@ each sample with the phase it belongs to. What it does not need to own is
 *how* a counter is read or how a container runtime's output is parsed, which
 is everything here.
 
-Three kinds of thing live in this module:
+This module holds three kinds of thing:
 
 - Pure parsers for ``podman``/``docker stats`` payloads. No I/O, no state.
 - Cgroup readers. The CPU counter is read straight from ``cpu.stat`` rather

@@ -262,7 +262,7 @@ class GigaSLAMAlgorithm(SLAMAlgorithm):
             raise RuntimeError("GigaSLAM podman path: failed to create per-run config")
         host_config = config_file.resolve()
         # ``output_dir`` is bind-mounted at ``/output``; the per-run config
-        # lives at ``output_dir/gigaslam_config.yaml``, so its container
+        # is written to ``output_dir/gigaslam_config.yaml``, so its container
         # path is deterministic.
         container_config = f"{_CONTAINER_OUTPUT_PATH}/{host_config.name}"
 
@@ -314,7 +314,7 @@ class GigaSLAMAlgorithm(SLAMAlgorithm):
             apply_realtime_to_podman_cmd,
         )
         apply_realtime_to_podman_cmd(container_cmd, _CONTAINER_OUTPUT_PATH)
-        # The deadline-iterator hook lives in the frontend sub-module (the
+        # The deadline-iterator hook is in the frontend sub-module (the
         # frame loop is in utils/slam_frontend.py, not slam.py), so override
         # that file over the image's baked-in copy.
         apply_entrypoint_override(
@@ -453,7 +453,7 @@ class GigaSLAMAlgorithm(SLAMAlgorithm):
     ) -> Optional[Path]:
         """Generate a per-run GigaSLAM config inheriting from the chosen base.
 
-        The generated config lives in ``output_dir/gigaslam_config.yaml`` so
+        The generated config is written to ``output_dir/gigaslam_config.yaml`` so
         it's reachable from inside the container (which bind-mounts
         ``output_dir`` at ``/output``).
 

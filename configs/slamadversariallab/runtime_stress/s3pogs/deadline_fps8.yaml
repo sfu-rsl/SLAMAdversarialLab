@@ -7,7 +7,7 @@ experiment:
     (driving the frontend's cur_frame_idx) drops frames whose deadline passed
     while the previous frame was processed. S3PO-GS keys keyframes by the real
     frame index (kf_indices), so dropped frames give sparser keyframes with no
-    remap. The frame loop lives in utils/slam_frontend.py (a spawned process),
+    remap. The frame loop is in utils/slam_frontend.py (a spawned process),
     bind-mounted over the image copy via apply_entrypoint_override.
   seed: 42
 

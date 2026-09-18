@@ -6,8 +6,8 @@ in what they degrade.
 
 | | what it degrades | ask |
 |---|---|---|
-| **SLAMAdversarialLab** | the **input**: fog, rain, night, cracked lens, soiling, frame drops | does the system survive what the camera sees? |
-| **SLAMSqueezeBench** | the **execution environment**: CPU, memory, disk and GPU caps, competing workloads, a real-time frame deadline | does the system survive the machine it runs on? |
+| **[SLAMAdversarialLab](https://arxiv.org/abs/2603.17165)** | the **input**: fog, rain, night, cracked lens, soiling, frame drops | does the system survive what the camera sees? |
+| **[SLAMSqueezeBench](https://arxiv.org/abs/2609.19533)** | the **execution environment**: CPU, memory, disk and GPU caps, competing workloads, a real-time frame deadline | does the system survive the machine it runs on? |
 
 Both drive the same fourteen SLAM backends through one config format, so a
 system integrated once can be evaluated either way.
@@ -394,7 +394,7 @@ datasets/kitti/sequences/<NN>/image_3/     # right colour
 datasets/kitti/poses/<NN>.txt              # ground truth
 ```
 
-Datasets live outside the repository history, under `./datasets/`.
+Datasets sit outside the repository history, under `./datasets/`.
 
 Example dataset config:
 
@@ -412,7 +412,7 @@ dataset:
 Experiment configs are plain YAML files with four main sections:
 
 - `experiment`: metadata such as the run name and seed
-- `dataset`: which dataset adapter to use and where the data lives
+- `dataset`: which dataset adapter to use and where the data sits
 - `perturbations`: the ordered list of modules to apply
 - `output`: where generated artifacts should be written
 
@@ -559,8 +559,8 @@ consumption on the y (CPU in cores, memory and VRAM in GB, GPU utilisation in
 percent), with the phases shaded so an applied cap or antagonist is visible
 rather than inferred.
 
-The experiment record and per-system results live with the paper rather than
-in this repository.
+The experiment record and per-system results are in the
+[paper](https://arxiv.org/abs/2609.19533) rather than in this repository.
 
 ### Evaluate Feature-Extractor VO with PySLAM
 
@@ -687,7 +687,20 @@ MIT License. See [`LICENSE`](LICENSE).
 
 ## Citation
 
-If you use SLAMAdversarialLab in your research, cite:
+For the runtime-stress framework, cite SLAMSqueezeBench:
+
+```bibtex
+@article{hefny2026squeezebench,
+  author  = {Mohamed Hefny and Karthik Dantu and Steven Y. Ko},
+  title   = {{SLAMSqueezeBench}: Comparing {SLAM} Systems under
+             Resource Constraints},
+  journal = {arXiv preprint arXiv:2609.19533},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2609.19533}
+}
+```
+
+For the perturbation framework, cite SLAMAdversarialLab:
 
 ```bibtex
 @inproceedings{hefny2026sal,

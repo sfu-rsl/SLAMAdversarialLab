@@ -279,7 +279,7 @@ class S3POGSAlgorithm(SLAMAlgorithm):
             raise RuntimeError("S3PO-GS podman path: failed to create per-run config")
         host_config_file = config_file.resolve()
         # output_dir is bind-mounted at /output; the per-run config
-        # lives at output_dir/s3pogs_config.yaml, so its container path
+        # is written to output_dir/s3pogs_config.yaml, so its container path
         # is deterministic.
         container_config = f"{_CONTAINER_OUTPUT_PATH}/{host_config_file.name}"
 
@@ -603,7 +603,7 @@ class S3POGSAlgorithm(SLAMAlgorithm):
     ) -> Optional[Path]:
         """Generate a per-run S3PO-GS config inheriting from the chosen base.
 
-        The generated config lives in ``output_dir/s3pogs_config.yaml``
+        The generated config is written to ``output_dir/s3pogs_config.yaml``
         so it's reachable from inside the container (which bind-mounts
         ``output_dir`` at ``/output``).
 
@@ -693,7 +693,7 @@ class S3POGSAlgorithm(SLAMAlgorithm):
     ) -> Optional[Path]:
         """Prepare dataset for S3PO-GS format (rgb/, poses.txt, calib.txt).
 
-        For the conda path, the staged sequence dir lives under
+        For the conda path, the staged sequence dir sits under
         ``self.s3pogs_path/datasets/KITTI/<NN>`` so slam.py's relative
         ``dataset_path`` (default ``datasets/KITTI/04/``) lands there
         with no further config rewriting.

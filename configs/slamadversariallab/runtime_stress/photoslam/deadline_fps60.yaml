@@ -2,7 +2,7 @@ experiment:
   name: deadline_fps60_tum_desk_photoslam
   description: >-
     Real-time deadline test on Photo-SLAM (TUM freiburg1_desk, RGB-D). Photo-
-    SLAM is a C++ Gaussian-Splatting SLAM whose frame loop lives in the
+    SLAM is a C++ Gaussian-Splatting SLAM whose frame loop is in the
     compiled example examples/tum_rgbd.cpp (the wrapper picks the RGB-D binary
     because this sequence ships a depth stream). The SAL deadline iterator is
     compiled into that binary from the single canonical C++ header
